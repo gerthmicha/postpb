@@ -35,8 +35,8 @@ ui <- fluidPage(
       # Show a plot of the generated distribution
       mainPanel(
         tabsetPanel(type = "tabs",
-                    tabPanel("Trace", plotOutput("tracePlot", height="800px")),
-                    tabPanel("Distribution", plotOutput("densePlot", height="800px")),
+                    tabPanel("Trace", plotOutput("tracePlot", height="1000px")),
+                    tabPanel("Distribution", plotOutput("densePlot", height="1000px")),
                     tabPanel("Summary statistics", tableOutput("table")),
                     tabPanel("About", includeMarkdown("background.md")))
       )
@@ -286,7 +286,7 @@ output$densePlot <- renderPlot({
   })
 
 output$table <- renderTable(rownames=TRUE, {
-  
+  library(markdown)
   library(LaplacesDemon)
 
   # Remove error message without 

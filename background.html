@@ -124,9 +124,20 @@ $(document).ready(function () {
 </div>
 
 
-<div id="test" class="section level4">
-<h4>TEST</h4>
-</div>
+<p><br><br> This app can be used to plot trace files from Phylobayes runs which is helpful in assessing convergence and mixing of parameters. Input must be at least one, and at most four phylobayes trace files from Phylobayes chains run with identical parameters.</p>
+<p>The app ca be accessed through</p>
+<ul>
+<li><a href="https://gerthmicha.shinyapps.io/pbplot/" class="uri">https://gerthmicha.shinyapps.io/pbplot/</a> (Shinyapps) or</li>
+<li><a href="https://github.com/gerthmicha/pbplot" class="uri">https://github.com/gerthmicha/pbplot</a> (R script to be run in the command line)</li>
+</ul>
+<p>and can be run as Shiny app locally:</p>
+<pre class="r"><code># Install required libraries
+install.packages(c(&quot;ggplot2&quot;, &quot;gridExtra&quot;, &quot;LaplacesDemon&quot;, &quot;markdown&quot;, &quot;shiny&quot;), dependencies = TRUE)
+
+# Run Shiny app
+library(shiny)
+shiny::runGitHub(&quot;pbplot&quot;,&quot;gerthmicha&quot;)</code></pre>
+<p><br><br> Questions &amp; comments welcome: <a href="mailto:gerth@liv.ac.uk">gerth@liv.ac.uk</a></p>
 
 
 
