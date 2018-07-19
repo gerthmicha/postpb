@@ -1,6 +1,3 @@
-# Rscripts
-
-
 #### pbpplot.R
 
 This script plots the parameters estimated during a phylobayes run.
