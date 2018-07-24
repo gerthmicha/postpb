@@ -19,7 +19,7 @@ shiny::runGitHub("pbplot","gerthmicha")
 
 This is the standalone version to be run locally as executable R script
 
-```sh
+```
 Usage: /usr/bin/pbplot.R [options]
 
 Options:
