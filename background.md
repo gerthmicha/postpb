@@ -10,11 +10,11 @@ and can be run as Shiny app locally:
 
 ```R
 # Install required libraries
-install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny"), dependencies = TRUE)
+install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes", "shinycssloaders"), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
 shiny::runGitHub("pbplot","gerthmicha")
 ```
-<br><br>
+<br>
 Questions & comments welcome: gerth@liv.ac.uk 

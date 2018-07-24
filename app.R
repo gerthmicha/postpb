@@ -8,16 +8,19 @@
 #
 
 library(shiny)
+library(shinythemes)
+library(shinycssloaders)
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- fluidPage(theme = shinytheme("flatly"),
    
    # Application title
    titlePanel("Phylobayes trace stats"),
    
    # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
+   fluidRow(
+     column(4,
+            wellPanel(
         fileInput("file1", "Select Phylobayes trace files",
                   multiple = TRUE,
                   accept = c(".trace")),
@@ -29,28 +32,34 @@ ui <- fluidPage(
                      value = 20),
         numericInput("prop",
                     "Plot every Nth iteration",
-                     value = 10)
-      ),
-      
+                     value = 10),
+        hr(),
+        conditionalPanel(condition = 'output.tracePlot', downloadButton("downloadPDF", "Download pdf of trace plots")),
+        hr(),
+        includeMarkdown("background.md")
+      )
+     ),
       # Show a plot of the generated distribution
-      mainPanel(
+      column(8,
         tabsetPanel(type = "tabs",
-                    tabPanel("Trace", plotOutput("tracePlot", height="1000px")),
-                    tabPanel("Distribution", plotOutput("densePlot", height="1000px")),
-                    tabPanel("Summary statistics", tableOutput("table")),
-                    tabPanel("About", includeMarkdown("background.md")))
+                    tabPanel("Trace", withSpinner(color="#0dc5c1", plotOutput("tracePlot", height="1000px"))),
+                    tabPanel("Distribution", withSpinner(color="#0dc5c1", plotOutput("densePlot", height="1000px"))),
+                    tabPanel("Summary statistics", withSpinner(color="#0dc5c1", tableOutput("table"))))
       )
    )
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-   
-   output$tracePlot <- renderPlot({
-     # Load packages 
-     library(ggplot2)
-     library(gridExtra)
-
+server <- function(input, output, server) {
+  library(ggplot2)
+  library(gridExtra)
+  
+  myPlot <- function(plotlist){
+    grid.arrange(grobs=plotlist, ncol = 2)
+  }
+  
+ tracelist <- reactive({
+     req(input$file1)
      # Remove error message without 
      if(is.null(input$file1))     return(NULL) 
      
@@ -169,21 +178,15 @@ server <- function(input, output) {
        traceplots[[i]]<- p1
      }
      }
-
      newtraceplots <- list()
      for(i in 4:ncol(trace1)){
        newtraceplots[[i-3]] <- traceplots[[i]]  
      } 
-     
-     grid.arrange(grobs=newtraceplots, ncol = 2)
-     
+    newtraceplots
   })
-
-output$densePlot <- renderPlot({
+   
+denselist <- reactive({
   
-  # Load packages 
-  library(ggplot2)
-  library(gridExtra)
   
   # Remove error message without 
   if(is.null(input$file1))     return(NULL) 
@@ -280,10 +283,17 @@ output$densePlot <- renderPlot({
   for(i in 4:ncol(trace1)){
     newdenseplots[[i-3]] <- denseplots[[i]]  
   } 
-  
-  grid.arrange(grobs=newdenseplots, ncol = 2)
-
+  newdenseplots
   })
+
+output$tracePlot <- renderPlot({
+  myPlot(plotlist=tracelist())
+})
+
+output$densePlot <- renderPlot({
+  myPlot(plotlist=denselist())
+})
+
 
 output$table <- renderTable(rownames=TRUE, {
   library(markdown)
@@ -334,8 +344,18 @@ output$table <- renderTable(rownames=TRUE, {
   tail(results, n=-3)
 })
 
+output$downloadPDF <- downloadHandler(filename = "traceplots.pdf",
+  content = function(file) {
+    pdf(file, paper="a4", width=8, height=11)
+    grid.arrange(grobs=tracelist(), ncol = 2)
+    grid.arrange(grobs=denselist(), ncol = 2)
+    dev.off()
+  }
+  
+)
 
 } 
+
 # Run the application 
 shinyApp(ui = ui, server = server)
 
