@@ -32,7 +32,13 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                      value = 20),
         numericInput("prop",
                     "Plot every Nth iteration",
-                     value = 10),
+                     value = 10,
+                     width="30%"),
+        checkboxInput("dots", "Plot points", TRUE),
+        checkboxInput("lines", "Plot lines", FALSE),
+        sliderInput("cex", "Scaling factor for points and lines", min=0.1, max=10, value=1, step=0.1),
+        sliderInput("height", "Height of plot in pixels", min=100, max=5000, value=1000, step=100),
+        sliderInput("width", "Width of plot in pixels", min=100, max=5000, value=1000, step=100),
         hr(),
         conditionalPanel(condition = 'output.tracePlot', downloadButton("downloadPDF", "Download pdf of trace plots")),
         hr(),
@@ -42,8 +48,8 @@ ui <- fluidPage(theme = shinytheme("flatly"),
       # Show a plot of the generated distribution
       column(8,
         tabsetPanel(type = "tabs",
-                    tabPanel("Trace", withSpinner(color="#0dc5c1", plotOutput("tracePlot", height="1000px"))),
-                    tabPanel("Distribution", withSpinner(color="#0dc5c1", plotOutput("densePlot", height="1000px"))),
+                    tabPanel("Trace", uiOutput("tracePlot.ui")),
+                    tabPanel("Distribution", uiOutput("densePlot.ui")),
                     tabPanel("Summary statistics", withSpinner(color="#0dc5c1", tableOutput("table"))))
       )
    )
@@ -55,7 +61,7 @@ server <- function(input, output, server) {
   library(gridExtra)
   
   myPlot <- function(plotlist){
-    grid.arrange(grobs=plotlist, ncol = 2)
+    grid.arrange(grobs=plotlist, ncol=2)
   }
   
  tracelist <- reactive({
@@ -102,13 +108,20 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==1){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
-                      color='#377eb8',
-                      size=0.5)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
            xlab("")+
            ylab(names[i])+   
            theme_light()
+         if(input$dots==TRUE){
+           p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+                      color='#377eb8',
+                      size=input$cex)
+         }
+         if(input$lines==TRUE){
+           p1<- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
+                                color='#377eb8',
+                                size=input$cex)
+         }
          traceplots[[i]]<- p1
        }
      } 
@@ -116,17 +129,25 @@ server <- function(input, output, server) {
        if(length(input$file1$name)==2){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
-                      color='#377eb8',
-                      size=0.5)+
-           geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
-                      color='#ff7f00',
-                      size=0.5)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
            xlab("")+
            ylab(names[i])+   
            theme_light()
+         if(input$dots==TRUE){
+           p1<-p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+                                         color='#377eb8',
+                                         size=input$cex)+
+             geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
+                        color='#ff7f00',
+                        size=input$cex)}
+         if(input$lines==TRUE){
+           p1 <- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
+                                                     color='#377eb8',
+                                                     size=input$cex)+
+            geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
+                      color='#ff7f00',
+                      size=input$cex)}
          traceplots[[i]]<- p1
        }
        }
@@ -134,21 +155,34 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==3){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
-                      color='#377eb8',
-                      size=0.5)+
-           geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
-                      color='#ff7f00',
-                      size=0.5)+
-           geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
-                      color='#4daf4a',
-                      size=0.5)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
            annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
            xlab("")+
            ylab(names[i])+   
            theme_light()
+         if(input$dots==TRUE){
+           p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+                      color='#377eb8',
+                      size=input$cex)+
+             geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
+                        color='#ff7f00',
+                        size=input$cex)+
+             geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
+                        color='#4daf4a',
+                        size=input$cex)
+         }
+         if(input$lines==TRUE){
+           p1<- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
+                                color='#377eb8',
+                                size=input$cex)+
+             geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
+                        color='#ff7f00',
+                        size=input$cex)+
+             geom_line(data=trace3, aes_string(x=names[1], y=names[i]),
+                        color='#4daf4a',
+                        size=input$cex)
+         }
          traceplots[[i]]<- p1
        }
      }
@@ -156,18 +190,6 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==4){
      for (i in 4:length(names)){
        p1 <- ggplot()+
-         geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
-                    color='#377eb8',
-                    size=0.5)+
-         geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
-                    color='#ff7f00',
-                    size=0.5)+
-         geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
-                    color='#4daf4a',
-                    size=0.5)+
-         geom_point(data=trace4, aes_string(x=names[1], y=names[i]),
-                    color='#984ea3',
-                    size=0.5)+
          annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
          annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
          annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
@@ -175,6 +197,34 @@ server <- function(input, output, server) {
          xlab("")+
          ylab(names[i])+   
          theme_light()
+       if(input$dots==TRUE){
+        p1 <- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+                    color='#377eb8',
+                    size=input$cex)+
+           geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
+                      color='#ff7f00',
+                      size=input$cex)+
+           geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
+                      color='#4daf4a',
+                      size=input$cex)+
+           geom_point(data=trace4, aes_string(x=names[1], y=names[i]),
+                      color='#984ea3',
+                      size=input$cex)
+       }
+       if(input$lines==TRUE){
+         p1 <- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
+                    color='#377eb8',
+                    size=input$cex)+
+           geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
+                      color='#ff7f00',
+                      size=input$cex)+
+           geom_line(data=trace3, aes_string(x=names[1], y=names[i]),
+                      color='#4daf4a',
+                      size=input$cex)+
+           geom_line(data=trace4, aes_string(x=names[1], y=names[i]),
+                      color='#984ea3',
+                      size=input$cex)
+       }
        traceplots[[i]]<- p1
      }
      }
@@ -286,6 +336,10 @@ denselist <- reactive({
   newdenseplots
   })
 
+plotheight <- reactive({input$height})
+
+plotwidth <- reactive({input$width})
+
 output$tracePlot <- renderPlot({
   myPlot(plotlist=tracelist())
 })
@@ -294,6 +348,13 @@ output$densePlot <- renderPlot({
   myPlot(plotlist=denselist())
 })
 
+output$tracePlot.ui <- renderUI({
+  plotOutput("tracePlot", height=plotheight(), width=plotwidth())
+})
+
+output$densePlot.ui <- renderUI({
+  plotOutput("densePlot", height=plotheight(), width=plotwidth())
+})
 
 output$table <- renderTable(rownames=TRUE, {
   library(markdown)
@@ -346,7 +407,7 @@ output$table <- renderTable(rownames=TRUE, {
 
 output$downloadPDF <- downloadHandler(filename = "traceplots.pdf",
   content = function(file) {
-    pdf(file, paper="a4", width=8, height=11)
+    pdf(file,  height=input$height/72, width=input$width/72)
     grid.arrange(grobs=tracelist(), ncol = 2)
     grid.arrange(grobs=denselist(), ncol = 2)
     dev.off()
