@@ -6,7 +6,7 @@ The app can be accessed through https://gerthmicha.shinyapps.io/pbplot/ or can b
 
 ```R
 # Install required libraries
-install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes", "shinycssloaders"), dependencies = TRUE)
+install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes"), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
