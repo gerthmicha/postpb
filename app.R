@@ -9,7 +9,6 @@
 
 library(shiny)
 library(shinythemes)
-library(shinycssloaders)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("flatly"),
@@ -50,7 +49,8 @@ ui <- fluidPage(theme = shinytheme("flatly"),
         tabsetPanel(type = "tabs",
                     tabPanel("Trace", uiOutput("tracePlot.ui")),
                     tabPanel("Distribution", uiOutput("densePlot.ui")),
-                    tabPanel("Summary statistics", withSpinner(color="#0dc5c1", tableOutput("table"))))
+                    tabPanel("Summary statistics", tableOutput("table")), conditionalPanel(condition='output.table',
+                                                                                           includeMarkdown("stats.md")))
       )
    )
 )
@@ -63,6 +63,8 @@ server <- function(input, output, server) {
   myPlot <- function(plotlist){
     grid.arrange(grobs=plotlist, ncol=2)
   }
+  
+  scalefactor <- reactive({(input$height+input$width)/2000})
   
  tracelist <- reactive({
      req(input$file1)
@@ -108,10 +110,12 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==1){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
            xlab("")+
            ylab(names[i])+   
-           theme_light()
+           theme_light()+
+           theme(axis.text = element_text(size=11*scalefactor()*0.8),
+                 axis.title = element_text(size=16*scalefactor()*0.7))
          if(input$dots==TRUE){
            p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                       color='#377eb8',
@@ -129,11 +133,13 @@ server <- function(input, output, server) {
        if(length(input$file1$name)==2){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
            xlab("")+
            ylab(names[i])+   
-           theme_light()
+           theme_light()+
+           theme(axis.text = element_text(size=11*scalefactor()*0.8),
+                 axis.title = element_text(size=16*scalefactor()*0.7))
          if(input$dots==TRUE){
            p1<-p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                                          color='#377eb8',
@@ -155,12 +161,14 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==3){
        for (i in 4:length(names)){
          p1 <- ggplot()+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
-           annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
+           annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3*scalefactor())+
            xlab("")+
            ylab(names[i])+   
-           theme_light()
+           theme_light()+
+           theme(axis.text = element_text(size=11*scalefactor()*0.8),
+                 axis.title = element_text(size=16*scalefactor()*0.7))
          if(input$dots==TRUE){
            p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                       color='#377eb8',
@@ -190,13 +198,15 @@ server <- function(input, output, server) {
      if(length(input$file1$name)==4){
      for (i in 4:length(names)){
        p1 <- ggplot()+
-         annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-         annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
-         annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
-         annotate("text", x = Inf, y = Inf, label = chainnames[[4]][1], color="#984ea3", vjust=5.5, hjust=1, size=3)+
+         annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+         annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
+         annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3*scalefactor())+
+         annotate("text", x = Inf, y = Inf, label = chainnames[[4]][1], color="#984ea3", vjust=5.5, hjust=1, size=3*scalefactor())+
          xlab("")+
          ylab(names[i])+   
-         theme_light()
+         theme_light()+
+         theme(axis.text = element_text(size=11*scalefactor()*0.8),
+               axis.title = element_text(size=16*scalefactor()*0.7))
        if(input$dots==TRUE){
         p1 <- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                     color='#377eb8',
@@ -236,7 +246,7 @@ server <- function(input, output, server) {
   })
    
 denselist <- reactive({
-  
+  req(input$file1)
   
   # Remove error message without 
   if(is.null(input$file1))     return(NULL) 
@@ -279,9 +289,11 @@ denselist <- reactive({
     for (i in 4:length(names)){
       p2 <- ggplot()+
         geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.4, size=0 )+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
         ylab("")+
-        theme_light()
+        theme_light()+
+        theme(axis.text = element_text(size=11*scalefactor()*0.8),
+              axis.title = element_text(size=16*scalefactor()*0.7))
       denseplots[[i]] <- p2
     }
   }
@@ -290,10 +302,12 @@ denselist <- reactive({
       p2 <- ggplot()+
         geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.4, size=0 )+
         geom_density(data=trace2,aes_string(names[i]), fill="#ff7f00", alpha=0.4, size=0)+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
         ylab("")+
-        theme_light()
+        theme_light()+
+        theme(axis.text = element_text(size=11*scalefactor()*0.8),
+              axis.title = element_text(size=16*scalefactor()*0.7))
       denseplots[[i]] <- p2
     }
   }
@@ -303,11 +317,13 @@ denselist <- reactive({
         geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.5, size=0 )+
         geom_density(data=trace2,aes_string(names[i]), fill="#ff7f00", alpha=0.5, size=0)+
         geom_density(data=trace3,aes_string(names[i]), fill="#4daf4a", alpha=0.5, size=0)+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
-        annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
+        annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3*scalefactor())+
         ylab("")+
-        theme_light()
+        theme_light()+
+        theme(axis.text = element_text(size=11*scalefactor()*0.8),
+              axis.title = element_text(size=16*scalefactor()*0.7))
       denseplots[[i]] <- p2
     }
   }
@@ -318,12 +334,14 @@ denselist <- reactive({
       geom_density(data=trace2,aes_string(names[i]), fill="#ff7f00", alpha=0.5, size=0)+
       geom_density(data=trace3,aes_string(names[i]), fill="#4daf4a", alpha=0.5, size=0)+
       geom_density(data=trace3,aes_string(names[i]), fill="#984ea3", alpha=0.5, size=0)+
-      annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
-      annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
-      annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
-      annotate("text", x = Inf, y = Inf, label = chainnames[[4]][1], color="#984ea3", vjust=5.5, hjust=1, size=3)+
+      annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3*scalefactor())+
+      annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3*scalefactor())+
+      annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3*scalefactor())+
+      annotate("text", x = Inf, y = Inf, label = chainnames[[4]][1], color="#984ea3", vjust=5.5, hjust=1, size=3*scalefactor())+
       ylab("")+
-      theme_light()
+      theme_light()+
+      theme(axis.text = element_text(size=11*scalefactor()*0.8),
+            axis.title = element_text(size=16*scalefactor()*0.7))
     denseplots[[i]] <- p2
     }
   }
@@ -384,6 +402,7 @@ output$table <- renderTable(rownames=TRUE, {
   try( burnin <- nrow(trace2)/100*burnin )
   burnin <- burnin+1
   try( trace2 <- trace2[burnin:nrow(trace2), ] )
+  try( reldif <- 2*abs((colMeans(trace1)-colMeans(trace2))) / (sapply(trace1, sd, na.rm = TRUE) + sapply(trace2, sd, na.rm = TRUE)))
   try(trace1 <- rbind(trace1,trace2))
   
   burnin <- input$burnin
@@ -402,6 +421,7 @@ output$table <- renderTable(rownames=TRUE, {
   names(results) <- "ESS" 
   results$Mean <- colMeans(trace1)
   results$SD <- sapply(trace1, sd, na.rm = TRUE)
+  try( results$Discrepancy <- reldif )
   tail(results, n=-3)
 })
 
