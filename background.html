@@ -124,20 +124,36 @@ $(document).ready(function () {
 </div>
 
 
-<p><br><br> This app can be used to plot trace files from Phylobayes runs which is helpful in assessing convergence and mixing of parameters. Input must be at least one, and at most four phylobayes trace files from Phylobayes chains run with identical parameters.</p>
-<p>The app ca be accessed through</p>
-<ul>
-<li><a href="https://gerthmicha.shinyapps.io/pbplot/" class="uri">https://gerthmicha.shinyapps.io/pbplot/</a> (Shinyapps) or</li>
-<li><a href="https://github.com/gerthmicha/pbplot" class="uri">https://github.com/gerthmicha/pbplot</a> (R script to be run in the command line)</li>
-</ul>
-<p>and can be run as Shiny app locally:</p>
+<div id="motivation" class="section level3">
+<h3>Motivation</h3>
+<p>This app can be used to evaluate the results of Phylobayes runs in an interactive and graphical way. <a href="http://www.atgc-montpellier.fr/phylobayes/">Phylobayes</a> is a Bayesian phylogenetics package intended mainly for protein sequence analyses. Although it comes with built-in methods for assessing convergence and mixing of parameters (<code>tracecomp</code> &amp; <code>bpcomp</code>), plotting of parameters and trees is often very helpful to evaluate the outcomes of a Phylobayes run. This is what this app is meant to do. <br></p>
+</div>
+<div id="installation-access" class="section level3">
+<h3>Installation / access</h3>
+<p>The app is hosted on shinyapps.io: <a href="https://gerthmicha.shinyapps.io/pbplot/" class="uri">https://gerthmicha.shinyapps.io/pbplot/</a> and can be accessed without installation. There is a usage limit of 25h per month however and if this is used up the app will be offline. To run it locally on your machine, open <code>R</code> and follow these instructions:</p>
 <pre class="r"><code># Install required libraries
-install.packages(c(&quot;ggplot2&quot;, &quot;gridExtra&quot;, &quot;LaplacesDemon&quot;, &quot;markdown&quot;, &quot;shiny&quot;), dependencies = TRUE)
+install.packages(c(&quot;ape&quot;, &quot;ggplot2&quot;, &quot;gridExtra&quot;, &quot;LaplacesDemon&quot;, &quot;markdown&quot;,&quot;phytools&quot;, &quot;shiny&quot;, &quot;shinythemes&quot;), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
 shiny::runGitHub(&quot;pbplot&quot;,&quot;gerthmicha&quot;)</code></pre>
-<p><br><br> Questions &amp; comments welcome: <a href="mailto:gerth@liv.ac.uk">gerth@liv.ac.uk</a></p>
+<p>A standalone version of the app with reduced functionality can be found on github: <a href="https://github.com/gerthmicha/pbplot" class="uri">https://github.com/gerthmicha/pbplot</a>. <br></p>
+</div>
+<div id="usage" class="section level3">
+<h3>Usage</h3>
+<p>There are two modules in this app, accessible through the tabs in the navbar on top of this page: <strong>Traces</strong> and <strong>Trees</strong></p>
+<div id="traces" class="section level5">
+<h5>Traces</h5>
+<p>Here, Phylobayes trace files can be summarized. Currently implemented functions: - bla1 - bla2</p>
+<ul>
+<li><strong>Trees</strong></li>
+</ul>
+</div>
+</div>
+<div id="example" class="section level3">
+<h3>Example</h3>
+<p>tba <br> For questions &amp; comments please raise an issue at github: <a href="https://github.com/gerthmicha/pbplot" class="uri">https://github.com/gerthmicha/pbplot</a></p>
+</div>
 
 
 
