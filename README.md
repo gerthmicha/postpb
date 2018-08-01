@@ -2,11 +2,11 @@
 
 This app can be used to plot trace files from Phylobayes runs which is helpful in assessing convergence and mixing of parameters. Input must be at least one, and at most four Phylobayes trace files from chains run with identical parameters.
 
-The app can be accessed through https://gerthmicha.shinyapps.io/pbplot/ or can be run as Shiny app locally: 
+The app is hosted on shinyapps (limited to 25h of usage/month) https://gerthmicha.shinyapps.io/pbplot/ or can be run locally: 
 
 ```R
 # Install required libraries
-install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes", "shinycssloaders"), dependencies = TRUE)
+install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes"), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
@@ -17,7 +17,7 @@ shiny::runGitHub("pbplot","gerthmicha")
 
 #### pbpplot.R
 
-This is the standalone version to be run locally as executable R script
+This is the standalone version to be run as executable R script
 
 ```
 Usage: /usr/bin/pbplot.R [options]
