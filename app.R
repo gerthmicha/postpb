@@ -67,11 +67,11 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                        tabsetPanel(type = "tabs", 
                                                    tabPanel("Trees", uiOutput("treePlot.ui")),
                                                    tabPanel("Consensus", uiOutput("consensusPlot.ui")),
-                                                   tabPanel("Difference", uiOutput("differencePlot.ui")))
+                                                   tabPanel("Difference", uiOutput("differencePlot.ui"), helpText("Conflicting nodes between consensus trees will be highlighted in red")))
                                 )
                               )          
                      ),
-                     tabPanel("About",includeMarkdown("background.md"))
+                     tabPanel("About",includeMarkdown("README.md"))
           ))
 
 # Define server logic required to draw a histogram
@@ -105,7 +105,7 @@ ngen  <- reactive({
      req(input$file1)
      # Remove error message without 
      if(is.null(input$file1))     return(NULL) 
-     
+
      # read in trace files (at least 1, up to 4 must be present) 
      trace1 <- read.table(input$file1$datapath[1], sep="\t", header=T, comment.char = "")
      try(trace2<-read.table(input$file1$datapath[2], sep="\t", header=T, comment.char = ""), silent=T)
@@ -663,19 +663,16 @@ output$consensusPlot.ui <- renderUI({
 
 output$differencePlot <- renderPlot({
   req(input$treefile[[2]])
+  validate(
+    need(input$outgroup != "<Midpoint>", "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
+  )
   trees1 <- trees1()[(input$conburnin+1):length(trees1())]
   contree1 <- consensus(trees1,p=0.5)
-  if(input$outgroup=="<Midpoint>"){
-    contree1 <- midpoint.root(contree1)
-  }
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     contree1 <- root(contree1, outgroup=input$outgroup)
   }
   trees2 <- trees2()[(input$conburnin+1):length(trees2())]
   contree2 <- consensus(trees2,p=0.5)
-  if(input$outgroup=="<Midpoint>"){
-    contree2 <- midpoint.root(contree2)
-  }
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     contree2 <- root(contree2, outgroup=input$outgroup)
   }
@@ -695,6 +692,7 @@ output$differencePlot <- renderPlot({
   })
 phylo.diff
 output$differencePlot.ui <- renderUI({
+  req(input$treefile[[2]])
   plotOutput("differencePlot", height=treeheight(), width=treewidth())
 }) 
   } 

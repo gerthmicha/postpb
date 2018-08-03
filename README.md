@@ -1,38 +1,45 @@
-#### pbplot
+### Motivation ###
+This app can be used to evaluate the results of Phylobayes runs in an interactive and graphical way. [Phylobayes](http://www.atgc-montpellier.fr/phylobayes/) is a Bayesian phylogenetics package intended mainly for protein sequence analyses. Although it comes with built-in methods for assessing convergence and mixing of parameters (`tracecomp` & `bpcomp`), plotting of parameters and trees is often very helpful to evaluate the outcomes of a Phylobayes run. This is what this app is meant to do.
+<br>
 
-This app can be used to plot trace files from Phylobayes runs which is helpful in assessing convergence and mixing of parameters. Input must be at least one, and at most four Phylobayes trace files from chains run with identical parameters.
-
-The app is hosted on shinyapps (limited to 25h of usage/month) https://gerthmicha.shinyapps.io/pbplot/ or can be run locally: 
-
+### Installation / access ###
+The app is hosted on shinyapps.io: https://gerthmicha.shinyapps.io/pbplot/ and can be accessed without installation. There is a usage limit of 25h per month however and if this is used up the app will be offline. To run it locally on your machine, open `R` and follow these instructions: 
 ```R
 # Install required libraries
-install.packages(c("ggplot2", "gridExtra", "LaplacesDemon", "markdown", "shiny", "shinythemes"), dependencies = TRUE)
+install.packages(c("ape", "distory", "ggplot2", "gridExtra", "LaplacesDemon", "markdown","phytools", "shiny", "shinythemes"), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
 shiny::runGitHub("pbplot","gerthmicha")
 ```
+A standalone version of the app with reduced functionality can be found on [github](https://github.com/gerthmicha/pbplot/README_rscript.md).
 <br>
 
+### Usage ###
+There are two modules in this app, accessible through the tabs in the navbar on top of this page: **Traces** and **Trees**
 
-#### pbpplot.R
+#### Traces ####
+Here, Phylobayes trace files can be summarized (file name ending in `.trace`). Upload 1–4 trace files from Phylobayes chains that were run under identical options. Click through the tabs to access the different funtions. Use the sliders in the sidebar to adjust the options. Currently implemented functions:
+  
+  - plotting of trace parameters as dot and/or line plot 
+  - plotting of the distribution of trace parameters
+  - interactive adjustment of the number of burnin generations
+  - interactive adjustment of plot appearance and size
+  - export of plots as pdf
+  - summary statistics of runs (similar to `tracecomp` fundtion of Phylobayes)
 
-This is the standalone version to be run as executable R script
+#### Trees ####
+Here, tree samples obtained with Phylobayes can be analysed (file name ending in `.treelist`). Typically, one would upload 2 tree sample files from Phylobayes chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented functions:
 
-```
-Usage: /usr/bin/pbplot.R [options]
-
-Options:
-	-b NUMBER, --burnin=NUMBER
-		number of burnin iterations to discard [required]
-
-	-f, --file
-		Shall plot be saved to pdf file instead of disp? [default: FALSE]
-
-	-h, --help
-		Show this help message and exit
-
-NOTE:	This script plots the parameters estimated during a phylobayes run.
-	It should be run in a directory containing 1–4 trace files created by phylobayes.
-	Requires R packages ggplot2, optparse, and gridExtra.
-```
+  - plotting of each tree sample for both chains side by side
+  - consensus trees for each of the chain, including branch lengths and posterior probabilities
+  - highlighting of conflicting nodes between the 2 consensus trees
+  - interactive adjustment of the number of burnin generations
+  - interactive rooting for all trees
+  - interactive coloring of taxa 
+  
+### Example ###
+tba
+<br>
+<br>
+For questions & comments please raise an issue at [github](https://github.com/gerthmicha/pbplot/issues)
