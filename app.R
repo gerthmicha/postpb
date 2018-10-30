@@ -1,15 +1,8 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shiny)
 library(shinythemes)
-
+library(shinycssloaders)
+library(shinyWidgets)
 # Define UI for application
 ui <- fluidPage(theme = shinytheme("flatly"),
           navbarPage("Phylobayes run stats",
@@ -25,8 +18,9 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                                "Plot every Nth iteration",
                                                value = 10,
                                                width="30%"),
-                                  checkboxInput("dots", "Plot points", TRUE),
-                                  checkboxInput("lines", "Plot lines", FALSE),
+                                  awesomeCheckboxGroup(inputId = "plotstyle", 
+                                                       label = "Plot", choices = c("lines", "dots"), selected = "lines", 
+                                                       inline = TRUE, status = "primary"),
                                   sliderInput("cex", "Scaling factor for points and lines", min=0.1, max=10, value=1, step=0.1),
                                   sliderInput("height", "Height of plot in pixels", min=100, max=5000, value=1000, step=100),
                                   sliderInput("width", "Width of plot in pixels", min=100, max=5000, value=1000, step=100),
@@ -39,8 +33,8 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                        tabsetPanel(type = "tabs",
                                                    tabPanel("Trace", uiOutput("tracePlot.ui")),
                                                    tabPanel("Distribution", uiOutput("densePlot.ui")),
-                                                   tabPanel("Summary statistics", tableOutput("table")), conditionalPanel(condition='output.table',
-                                                                                                                          includeMarkdown("stats.md")))
+                                                   tabPanel("Summary statistics", withSpinner(tableOutput("table"), color="#2C4152", size=0.5), conditionalPanel(condition='output.table',
+                                                                                                                          includeMarkdown("stats.md"))))
                                 )
                               )
                      ),
@@ -58,23 +52,23 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                          uiOutput("outgroups"),
                                          uiOutput("highlight"),
                                          uiOutput("highlight2"),
+                                         sliderInput("treecex", "Scaling factor for labels and lines", min=0.1, max=10, value=1, step=0.1),
                                          sliderInput("treeheight", "Height of plot in pixels", min=100, max=5000, value=800, step=100),
-                                         sliderInput("treewidth", "Width of plot in pixels", min=100, max=5000, value=1000, step=100),
-                                         sliderInput("treecex", "Scaling factor for labels and lines", min=0.1, max=10, value=1, step=0.1))
+                                         sliderInput("treewidth", "Width of plot in pixels", min=100, max=5000, value=1000, step=100))
                                 ),
                                 
                                 column(8, 
                                        tabsetPanel(type = "tabs", 
                                                    tabPanel("Trees", uiOutput("treePlot.ui")),
                                                    tabPanel("Consensus", uiOutput("consensusPlot.ui")),
-                                                   tabPanel("Difference", uiOutput("differencePlot.ui"), helpText("Conflicting nodes between consensus trees will be highlighted in red")))
+                                                   tabPanel("Difference", uiOutput("differencePlot.ui"), helpText("Conflicting nodes between consensus trees will be highlighted in green")))
                                 )
                               )          
                      ),
                      tabPanel("About",includeMarkdown("README.md"))
           ))
 
-# Define server logic required to draw a histogram
+# Define server logic 
 server <- function(input, output) {
   options(shiny.maxRequestSize = 50*1024^2)
   library(ggplot2)
@@ -147,15 +141,15 @@ ngen  <- reactive({
            theme_light()+
            theme(axis.text = element_text(size=11*scalefactor()*0.8),
                  axis.title = element_text(size=16*scalefactor()*0.7))
-         if(input$dots==TRUE){
+         if("dots" %in% input$plotstyle){
            p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                       color='#377eb8',
                       size=input$cex)
          }
-         if(input$lines==TRUE){
+         if("lines" %in% input$plotstyle){
            p1<- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
                                 color='#377eb8',
-                                size=input$cex)
+                                size=input$cex/2)
          }
          traceplots[[i]]<- p1
        }
@@ -171,20 +165,20 @@ ngen  <- reactive({
            theme_light()+
            theme(axis.text = element_text(size=11*scalefactor()*0.8),
                  axis.title = element_text(size=16*scalefactor()*0.7))
-         if(input$dots==TRUE){
+         if("dots" %in% input$plotstyle){
            p1<-p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                                          color='#377eb8',
                                          size=input$cex)+
              geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
                         color='#ff7f00',
                         size=input$cex)}
-         if(input$lines==TRUE){
+         if("lines" %in% input$plotstyle){
            p1 <- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
                                                      color='#377eb8',
-                                                     size=input$cex)+
+                                                     size=input$cex/2)+
             geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
                       color='#ff7f00',
-                      size=input$cex)}
+                      size=input$cex/2)}
          traceplots[[i]]<- p1
        }
        }
@@ -200,7 +194,7 @@ ngen  <- reactive({
            theme_light()+
            theme(axis.text = element_text(size=11*scalefactor()*0.8),
                  axis.title = element_text(size=16*scalefactor()*0.7))
-         if(input$dots==TRUE){
+         if("dots" %in% input$plotstyle){
            p1<- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                       color='#377eb8',
                       size=input$cex)+
@@ -211,16 +205,16 @@ ngen  <- reactive({
                         color='#4daf4a',
                         size=input$cex)
          }
-         if(input$lines==TRUE){
+         if("lines" %in% input$plotstyle){
            p1<- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
                                 color='#377eb8',
-                                size=input$cex)+
+                                size=input$cex/2)+
              geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
                         color='#ff7f00',
-                        size=input$cex)+
+                        size=input$cex/2)+
              geom_line(data=trace3, aes_string(x=names[1], y=names[i]),
                         color='#4daf4a',
-                        size=input$cex)
+                        size=input$cex/2)
          }
          traceplots[[i]]<- p1
        }
@@ -238,7 +232,7 @@ ngen  <- reactive({
          theme_light()+
          theme(axis.text = element_text(size=11*scalefactor()*0.8),
                axis.title = element_text(size=16*scalefactor()*0.7))
-       if(input$dots==TRUE){
+       if("dots" %in% input$plotstyle){
         p1 <- p1 + geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
                     color='#377eb8',
                     size=input$cex)+
@@ -252,19 +246,19 @@ ngen  <- reactive({
                       color='#984ea3',
                       size=input$cex)
        }
-       if(input$lines==TRUE){
+       if("lines" %in% input$plotstyle){
          p1 <- p1 + geom_line(data=trace1, aes_string(x=names[1], y=names[i]),
                     color='#377eb8',
-                    size=input$cex)+
+                    size=input$cex/2)+
            geom_line(data=trace2, aes_string(x=names[1], y=names[i]),
                       color='#ff7f00',
-                      size=input$cex)+
+                      size=input$cex/2)+
            geom_line(data=trace3, aes_string(x=names[1], y=names[i]),
                       color='#4daf4a',
-                      size=input$cex)+
+                      size=input$cex/2)+
            geom_line(data=trace4, aes_string(x=names[1], y=names[i]),
                       color='#984ea3',
-                      size=input$cex)
+                      size=input$cex/2)
        }
        traceplots[[i]]<- p1
      }
@@ -394,11 +388,11 @@ output$densePlot <- renderPlot({
 })
 
 output$tracePlot.ui <- renderUI({
-  plotOutput("tracePlot", height=plotheight(), width=plotwidth())
+  withSpinner(plotOutput("tracePlot", height=plotheight(), width=plotwidth()), color="#2C4152", size=0.5)
 })
 
 output$densePlot.ui <- renderUI({
-  plotOutput("densePlot", height=plotheight(), width=plotwidth())
+  withSpinner(plotOutput("densePlot", height=plotheight(), width=plotwidth()), color="#2C4152", size=0.5)
 })
 
 output$table <- renderTable(rownames=TRUE, {
@@ -529,7 +523,8 @@ output$treeplot1 <- renderPlot({
     }
   if(input$outgroup=="<None>"){
   plot(ladderize(trees1()[[input$generation]]), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color=tipcolors()[,1])
-  }
+    add.scale.bar(lwd=input$treecex)
+    }
   if(input$outgroup=="<Midpoint>"){
     currtree1 <- midpoint.root(trees1()[[input$generation]])
     concolors1.1 <- currtree1$tip.label %in% input$highlight
@@ -538,13 +533,16 @@ output$treeplot1 <- renderPlot({
     concolvec1[which(concolors1.1==TRUE)] <- "#d7191c"
     concolvec1[which(concolors1.2==TRUE)] <- "#2c7bb6"
     plot(ladderize(currtree1), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color=concolvec1)
+    add.scale.bar(lwd=input$treecex)
     }
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     plot(ladderize(root(trees1()[[input$generation]], outgroup=input$outgroup, resolve.root=T)), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color=tipcolors()[,1])
-  }
+    add.scale.bar(lwd=input$treecex)
+    }
   if(input$outgroup=="<None>"){
     try(plot(ladderize(trees2()[[input$generation]]), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, tip.color=tipcolors()[,2]))
-  }
+    add.scale.bar(lwd=input$treecex)
+    }
   if(input$outgroup=="<Midpoint>"){
     try(currtree2 <- midpoint.root(trees2()[[input$generation]]))
     try(concolors2.1 <- currtree2$tip.label %in% input$highlight)
@@ -553,10 +551,12 @@ output$treeplot1 <- renderPlot({
     try(concolvec2[which(concolors2.1==TRUE)] <- "#d7191c")
     try(concolvec2[which(concolors2.2==TRUE)] <- "#2c7bb6")
     try(plot(ladderize(currtree2), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, tip.color=concolvec2))
+    add.scale.bar(lwd=input$treecex)
     }
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     try(plot(ladderize(root(trees2()[[input$generation]], outgroup=input$outgroup, resolve.root=T)), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, tip.color=tipcolors()[,2]))
-  }
+    add.scale.bar(lwd=input$treecex)
+    }
   })
 
 treeheight <- reactive({input$treeheight})
@@ -564,7 +564,7 @@ treewidth <- reactive({input$treewidth})
 
 output$treePlot.ui <- renderUI({
   req(input$treefile)
-  plotOutput("treeplot1", height=treeheight(), width=treewidth())
+  withSpinner(plotOutput("treeplot1", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
 })
 
 output$consensusPlot <- renderPlot({
@@ -582,6 +582,7 @@ output$consensusPlot <- renderPlot({
     if(input$outgroup=="<None>"){
       plot(ladderize(contree1), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1))
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup=="<Midpoint>"){
       contree1 <- midpoint.root(contree1)
@@ -592,10 +593,12 @@ output$consensusPlot <- renderPlot({
       concolvec1[which(concolors1.2==TRUE)] <- "#2c7bb6"
       plot(ladderize(contree1), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1))
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
       plot(ladderize(root(contree1, outgroup=input$outgroup, resolve.root=T)), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1))
+      add.scale.bar(lwd=input$treecex)
     }
   }
   if(length(input$treefile$name)==2){
@@ -612,6 +615,7 @@ output$consensusPlot <- renderPlot({
     if(input$outgroup=="<None>"){
       plot(ladderize(contree1), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1), cex=input$treecex)
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup=="<Midpoint>"){
       contree1 <- midpoint.root(contree1)
@@ -622,10 +626,12 @@ output$consensusPlot <- renderPlot({
       concolvec1[which(concolors1.2==TRUE)] <- "#2c7bb6"
       plot(ladderize(contree1), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex,  tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1), cex=input$treecex)
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
       plot(ladderize(root(contree1, outgroup=input$outgroup, resolve.root=T)), main=treenames()[[1]], cex=input$treecex, edge.width=input$treecex, tip.color = concolvec1)
       nodelabels(text=contree1$nodelabel, frame="none", adj=c(-1), cex=input$treecex)
+      add.scale.bar(lwd=input$treecex)
     }
     trees2 <- trees2()[(input$conburnin+1):length(trees2())]
     contree2 <- consensus.edges(trees2,method="least.squares")
@@ -639,6 +645,7 @@ output$consensusPlot <- renderPlot({
     if(input$outgroup=="<None>"){
       plot(ladderize(contree2), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, direction = "leftwards", tip.color = concolvec2)
       nodelabels(text=contree2$nodelabel, frame="none", adj=c(1.5), cex=input$treecex)
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup=="<Midpoint>"){
       contree2 <- midpoint.root(contree2)
@@ -649,51 +656,74 @@ output$consensusPlot <- renderPlot({
       concolvec2[which(concolors2.2==TRUE)] <- "#2c7bb6"
       plot(ladderize(contree2), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, direction = "leftwards", tip.color = concolvec2)
       nodelabels(text=contree2$nodelabel, frame="none", adj=c(1.5), cex=input$treecex)
+      add.scale.bar(lwd=input$treecex)
     }
     if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
       plot(ladderize(root(contree2, outgroup=input$outgroup, resolve.root=T)), main=treenames()[[2]], cex=input$treecex, edge.width=input$treecex, direction = "leftwards", tip.color = concolvec2)
+      add.scale.bar(lwd=input$treecex)
       nodelabels(text=contree2$nodelabel, frame="none", adj=c(1.5), cex=input$treecex)
     }
       }
 })
 
 output$consensusPlot.ui <- renderUI({
-  plotOutput("consensusPlot", height=treeheight(), width=treewidth())
+  withSpinner(plotOutput("consensusPlot", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
 }) 
 
 output$differencePlot <- renderPlot({
   req(input$treefile[[2]])
   validate(
+    need(length(input$treefile$name) == 2, "Upload tree samples from 2 Phylobayes runs to display differences between consensus topologies.")
+  )
+  validate(
     need(input$outgroup != "<Midpoint>", "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
   )
+  
   trees1 <- trees1()[(input$conburnin+1):length(trees1())]
   contree1 <- consensus(trees1,p=0.5)
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     contree1 <- root(contree1, outgroup=input$outgroup)
   }
+  colors1.1 <- contree1$tip.label %in% input$highlight 
+  colors1.2 <- contree1$tip.label %in% input$highlight2
+  colvec1 <- rep("black", length=length(contree1$tip.label))
+  colvec1[which(colors1.1==TRUE)] <- "#d7191c"
+  colvec1[which(colors1.2==TRUE)] <- "#2c7bb6"
+  
   trees2 <- trees2()[(input$conburnin+1):length(trees2())]
   contree2 <- consensus(trees2,p=0.5)
   if(input$outgroup!="<Midpoint>" & input$outgroup!="<None>"){
     contree2 <- root(contree2, outgroup=input$outgroup)
   }
-  phylo.diff.new <-function (x, y, main1, main2, ...){
+  colors2.1 <- contree2$tip.label %in% input$highlight 
+  colors2.2 <- contree2$tip.label %in% input$highlight2
+  colvec2 <- rep("black", length=length(contree1$tip.label))
+  colvec2[which(colors2.1==TRUE)] <- "#d7191c"
+  colvec2[which(colors2.2==TRUE)] <- "#2c7bb6"
+
+    phylo.diff.new <-function (x, y, main1, main2, coltip1, coltip2, ...){
     uniqT1 <- distinct.edges(x, y)
     uniqT2 <- distinct.edges(y, x)
     treeA.cs <- rep("black", dim(x$edge)[1])
-    treeA.cs[uniqT1] = "red"
+    treeA.cs[uniqT1] = "green"
+    treeA.lw <- rep(input$treecex, dim(x$edge)[1])
+    treeA.lw[uniqT1] = input$treecex*1.5
     treeB.cs <- rep("black", dim(y$edge)[1])
-    treeB.cs[uniqT2] = "red"
+    treeB.cs[uniqT2] = "green"
+    treeB.lw <- rep(input$treecex, dim(x$edge)[1])
+    treeB.lw[uniqT1] = input$treecex*1.5
     par(mfrow = c(1, 2))
-    plot(x, edge.color = treeA.cs, main=main1, ...)
-    plot(y, edge.color = treeB.cs, main=main2, ...)
+    plot(x, edge.color = treeA.cs, main=main1, tip.color=coltip1, edge.width= treeA.lw, ...)
+    plot(y, edge.color = treeB.cs, main=main2, tip.color=coltip2, edge.width= treeB.lw,...)
     invisible()
   }
-  phylo.diff.new(contree1, contree2, cex=input$treecex, edge.width=input$treecex, main1=treenames()[[1]], main2=treenames()[[2]])
+  
+  phylo.diff.new(contree1, contree2, cex=input$treecex, main1=treenames()[[1]], main2=treenames()[[2]], coltip1=colvec1, coltip2=colvec2)
   })
 phylo.diff
 output$differencePlot.ui <- renderUI({
   req(input$treefile[[2]])
-  plotOutput("differencePlot", height=treeheight(), width=treewidth())
+  withSpinner(plotOutput("differencePlot", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
 }) 
   } 
 
