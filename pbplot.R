@@ -42,6 +42,21 @@ try(trace2<-read.table(files[2], sep="\t", header=T), silent=T)
 try(trace3<-read.table(files[3], sep="\t", header=T), silent=T)
 try(trace4<-read.table(files[4], sep="\t", header=T), silent=T)
 
+trace1$trace <- "trace1"
+trace2$trace <- "trace2"
+
+plotDF <- rbind(trace1[,c(1,4:ncol(trace1))],trace2[,c(1,4:ncol(trace2))])
+plotDF <- melt(plotDF, id.var=c("trace","iter"))
+
+ggplot(plotDF, aes(y=value, x=iter, fill=trace))+
+  geom_point(aes(col=trace))+
+  facet_wrap(~variable, scales = "free", ncol = 2)+
+  theme_light()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.title = element_blank())+
+  scale_fill_manual(values = c("#377eb8", "#ff7f00"), breaks=c("trace1", "trace2"), labels=c("bla1", "bla2"))
+
 # substract the burnin from all trace files
 trace1 <- trace1[opt$burnin+1:nrow(trace1), ]
 try(trace2 <- trace2[opt$burnin+1:nrow(trace2), ], silent=T)
@@ -87,6 +102,12 @@ if(length(files)==4){
     ylab(names[i])+   
     theme_light()
     traceplots[[i]]<- p1
+    
+    nrow(plotDF)/length(unique(plotDF$variable))/length(unique(plotDF$trace))
+    
+    ggplot(plotDF, aes(y=value, x=Inf)+
+      geom_point(aes(fill=trace))+
+      facet_wrap(~variable, scales = "free", ncol = 2)
     
     p2 <- ggplot()+
       geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.5, size=0 )+
