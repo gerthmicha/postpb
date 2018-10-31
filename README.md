@@ -6,7 +6,7 @@ This app can be used to evaluate the results of Phylobayes runs in an interactiv
 The app is hosted on shinyapps.io: https://gerthmicha.shinyapps.io/pbplot/ and can be accessed without installation. There is a usage limit of 25h per month however and if this is used up the app will be offline. To run it locally on your machine, open `R` and follow these instructions: 
 ```R
 # Install required libraries
-install.packages(c("ape", "distory", "ggplot2", "gridExtra", "LaplacesDemon", "markdown","phytools", "shiny", "shinythemes"), dependencies = TRUE)
+install.packages(c("ape", "distory", "ggplot2", "gridExtra", "LaplacesDemon", "markdown","phytools", "reshape", "shiny", "shinythemes"), dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)

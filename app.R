@@ -3,6 +3,7 @@ library(shiny)
 library(shinythemes)
 library(shinycssloaders)
 library(shinyWidgets)
+
 # Define UI for application
 ui <- fluidPage(theme = shinytheme("flatly"),
           navbarPage("Phylobayes run stats",
@@ -96,6 +97,7 @@ server <- function(input, output) {
   options(shiny.maxRequestSize = 50*1024^2)
   
   library(ggplot2)
+  library(reshape)
   library(gridExtra)
   library(ape)
   library(phytools)
