@@ -1,13 +1,13 @@
 name: pbplot
-title:
+title: pbplot
 username:
 account: gerthmicha
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 383727
-bundleId: 1511489
+bundleId: 1758764
 url: https://gerthmicha.shinyapps.io/pbplot/
-when: 1533128929.1304
+when: 1544632469.75619
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: pbplot.R|README.html|README.md
+ignoredFiles: background.html|pbplot.R|plot.pdf|README_rscript.md|README.html|test.eps|test.pdf|treeplot.pdf

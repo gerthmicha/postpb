@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
+
 # load required libraries
 library(ggplot2)
 library(gridExtra)
 library(optparse)
-
 
 # turn off warnings for quiet output
 options(warn=-1)
@@ -23,7 +23,7 @@ opt = parse_args(opt_parser)
 # stop script if no burnin value is provided, and print help screen
 if (is.null(opt$burnin)){
   print_help(opt_parser)
-  stop("\nNOTE:\tThis script plots the parameters estimated during a phylobayes run.\n\tIt should be run in a directory containing 1–4 trace files created by phylobayes.\n\tRequires R packages ggplot2, optparse, and gridExtra.\n\n", call.=FALSE)
+  stop("\nNOTE:\tThis script plots the parameters estimated during a phylobayes run.\n\tIt should be run in a directory containing 1â€“4 trace files created by phylobayes.\n\tRequires R packages ggplot2, optparse, and gridExtra.\n\n", call.=FALSE)
 }
 
 # define current directory as working directory 
@@ -34,28 +34,13 @@ setwd(wd)
 files <- list.files(".", pattern=".trace")
 
 # strip file ending of trace files for plot annotation
-chainnames <- strsplit(files, ".trace", fixed=T)
+chainnames <- strsplit(files, ".trace")
 
 # read in the files (at least one should be there, up to 4 in total)
-trace1<-read.table(files[1], sep="\t", header=T)
-try(trace2<-read.table(files[2], sep="\t", header=T), silent=T)
-try(trace3<-read.table(files[3], sep="\t", header=T), silent=T)
-try(trace4<-read.table(files[4], sep="\t", header=T), silent=T)
-
-trace1$trace <- "trace1"
-trace2$trace <- "trace2"
-
-plotDF <- rbind(trace1[,c(1,4:ncol(trace1))],trace2[,c(1,4:ncol(trace2))])
-plotDF <- melt(plotDF, id.var=c("trace","iter"))
-
-ggplot(plotDF, aes(y=value, x=iter, fill=trace))+
-  geom_point(aes(col=trace))+
-  facet_wrap(~variable, scales = "free", ncol = 2)+
-  theme_light()+
-  theme(axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.title = element_blank())+
-  scale_fill_manual(values = c("#377eb8", "#ff7f00"), breaks=c("trace1", "trace2"), labels=c("bla1", "bla2"))
+trace1<-read.table(files[1], sep="\t", header=T, comment.char = "")
+try(trace2<-read.table(files[2], sep="\t", header=T, comment.char = ""), silent=T)
+try(trace3<-read.table(files[3], sep="\t", header=T, comment.char = ""), silent=T)
+try(trace4<-read.table(files[4], sep="\t", header=T, comment.char = ""), silent=T)
 
 # substract the burnin from all trace files
 trace1 <- trace1[opt$burnin+1:nrow(trace1), ]
@@ -63,11 +48,15 @@ try(trace2 <- trace2[opt$burnin+1:nrow(trace2), ], silent=T)
 try(trace3 <- trace3[opt$burnin+1:nrow(trace3), ], silent=T)
 try(trace4 <- trace4[opt$burnin+1:nrow(trace4), ], silent=T)
 # only use every 10th iteration for plotting (faster calculation & smaller output files)
-  trace1 <- trace1[seq(0, nrow(trace1), 10),]
-  try(trace2 <- trace2[seq(0, nrow(trace2), 10),], silent=T)
-  try(trace3 <- trace3[seq(0, nrow(trace3), 10),], silent=T)
-  try(trace4 <- trace4[seq(0, nrow(trace4), 10),], silent=T)
+trace1 <- trace1[seq(0, nrow(trace1), 10),]
+try(trace2 <- trace2[seq(0, nrow(trace2), 10),], silent=T)
+try(trace3 <- trace3[seq(0, nrow(trace3), 10),], silent=T)
+try(trace4 <- trace4[seq(0, nrow(trace4), 10),], silent=T)
 
+colnames(trace1)[1] <- "iter"
+try(colnames(trace2)[1] <- "iter", silent = TRUE)
+try(colnames(trace3)[1] <- "iter", silent = TRUE)
+try(colnames(trace4)[1] <- "iter", silent = TRUE)
 
 # extract the names of the phylobayes parameters from the headers of a trace file 
 names <- colnames(trace1)
@@ -80,34 +69,28 @@ if(length(files)==4){
   sink("/dev/null")
   traceplots <- list()
   densplots <- list() 
-  for (i in 4:length(names)){
+  for (i in 4:11){
     p1 <- ggplot()+
-    geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
-               color='#377eb8',
-               size=0.5)+
-    geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
-               color='#ff7f00',
-               size=0.5)+
-    geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
-                color='#4daf4a',
-                size=0.5)+
-    geom_point(data=trace4, aes_string(x=names[1], y=names[i]),
-                color='#984ea3',
-                size=0.5)+
+      geom_point(data=trace1, aes_string(x="iter", y=names[i]),
+                 color='#377eb8',
+                 size=0.5)+
+      geom_point(data=trace2, aes_string(x="iter", y=names[i]),
+                 color='#ff7f00',
+                 size=0.5)+
+      geom_point(data=trace3, aes_string(x="iter", y=names[i]),
+                 color='#4daf4a',
+                 size=0.5)+
+      geom_point(data=trace4, aes_string(x="iter", y=names[i]),
+                 color='#984ea3',
+                 size=0.5)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[2]][1], color="#ff7f00", vjust=2.5, hjust=1, size=3)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[3]][1], color="#4daf4a", vjust=4, hjust=1, size=3)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[4]][1], color="#984ea3", vjust=5.5, hjust=1, size=3)+
-    xlab("")+
-    ylab(names[i])+   
-    theme_light()
+      xlab("")+
+      ylab(names[i])+   
+      theme_light()
     traceplots[[i]]<- p1
-    
-    nrow(plotDF)/length(unique(plotDF$variable))/length(unique(plotDF$trace))
-    
-    ggplot(plotDF, aes(y=value, x=Inf)+
-      geom_point(aes(fill=trace))+
-      facet_wrap(~variable, scales = "free", ncol = 2)
     
     p2 <- ggplot()+
       geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.5, size=0 )+
@@ -131,15 +114,15 @@ if(length(files)==3){
   sink("/dev/null")
   traceplots <- list()
   densplots <- list() 
-  for (i in 4:length(names)){
+  for (i in 4:11){
     p1 <- ggplot()+
-      geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace1, aes_string(x="iter", y=names[i]),
                  color='#377eb8',
                  size=0.5)+
-      geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace2, aes_string(x="iter", y=names[i]),
                  color='#ff7f00',
                  size=0.5)+
-      geom_point(data=trace3, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace3, aes_string(x="iter", y=names[i]),
                  color='#4daf4a',
                  size=0.5)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
@@ -171,12 +154,12 @@ if(length(files)==2){
   traceplots <- list()
   densplots <- list() 
   
-  for (i in 4:length(names)){
+  for (i in 4:11){
     p1 <- ggplot()+
-      geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace1, aes_string(x="iter", y=names[i]),
                  color='#377eb8',
                  size=0.5)+
-      geom_point(data=trace2, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace2, aes_string(x="iter", y=names[i]),
                  color='#ff7f00',
                  size=0.5)+
       annotate("text", x = Inf, y = Inf, label = chainnames[[1]][1], color="#377eb8", vjust=1, hjust=1, size=3)+
@@ -185,7 +168,7 @@ if(length(files)==2){
       ylab(names[i])+   
       theme_light()
     traceplots[[i]]<- p1
-
+    
     p2 <- ggplot()+
       geom_density(data=trace1,aes_string(names[i]), fill="#377eb8", alpha=0.4, size=0 )+
       geom_density(data=trace2,aes_string(names[i]), fill="#ff7f00", alpha=0.4, size=0)+
@@ -207,7 +190,7 @@ if(length(files)==1){
   
   for (i in 4:ncol(trace1)){
     p1 <- ggplot()+
-      geom_point(data=trace1, aes_string(x=names[1], y=names[i]),
+      geom_point(data=trace1, aes_string(x="iter", y=names[i]),
                  color='#377eb8',
                  size=0.5)+
       xlab("")+
@@ -241,7 +224,7 @@ for(i in 4:ncol(trace1)){
 # check if option --file was used, if yes, print traceplots to pdf file
 # arrange 8 traceplots in 2 columns using grid.arrange, and print to a4 sized potrait pdf
 if(opt$file==TRUE){
-  cat("Writing to 'plots.pdf'\n")
+  cat("Writing to 'plots.pdf\n")
   sink("/dev/null")
   pdf(file= "plots.pdf", paper="a4", width=8, height=11)
   grid.arrange(grobs=newtraceplots, ncol = 2)
@@ -249,7 +232,7 @@ if(opt$file==TRUE){
   grid.arrange(grobs=newdensplots, ncol = 2)
   dev.off()
   sink()
-  }
+}
 
 
 # if option --file was not used, plot using X11
@@ -262,4 +245,3 @@ if(opt$file==FALSE){
   message("Press Return to close")
   invisible(readLines("stdin", n=1))
 }
-
