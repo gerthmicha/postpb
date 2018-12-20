@@ -31,7 +31,7 @@ library(tidyr)
 ui <- fluidPage(theme = shinytheme("flatly"),  # defines theme of app
           # Layout of app: 1 navbar with 3 tab panels. The first 2 tab panels have 1 sidebar + 1 main display (including multiple tabs each)
           # Final tab panel is markdown help file 
-          navbarPage("Phylobayes run stats",
+          navbarPage(HTML("postpb"),
                      # first tab panel for trace analyses
                      tabPanel("Parameters",
                               fluidRow(
@@ -94,8 +94,11 @@ ui <- fluidPage(theme = shinytheme("flatly"),  # defines theme of app
                                                             conditionalPanel(condition = 'output.table',
                                                                              br(), 
                                                                              useShinyjs(), 
-                                                                             actionButton("explanation", "Toggle explanations", style='padding:5px 10px; font-size:90%; background-color:white; color:black'),
-                                                                             hidden(div(id="stats", includeMarkdown("stats.md"))))))
+                                                                             actionButton("explanation", 
+                                                                                          "Toggle explanations", 
+                                                                                          style='padding:5px 10px; font-size:90%; background-color:white; color:black'),
+                                                                             hidden(div(id="stats", includeMarkdown("stats.md"))))), 
+                                                   br())
                                 )
                               )
                      ),
@@ -154,7 +157,18 @@ ui <- fluidPage(theme = shinytheme("flatly"),  # defines theme of app
                                                    tabPanel("Consensus", 
                                                             uiOutput("consensusPlot.ui"),
                                                             conditionalPanel(condition = 'output.consensusPlot', 
-                                                                             downloadButton("newick", "Export tree in newick format", style='padding:5px 10px; font-size:90%; background-color:white; color:black'))),
+                                                                             sliderInput("postprop", 
+                                                                                         label = "Collapse branches with posterior probabilities lower than", 
+                                                                                         min = 0.5, 
+                                                                                         max = 1, 
+                                                                                         value = 0.5, 
+                                                                                         step = 0.05, 
+                                                                                         ticks = FALSE),
+                                                                             br(),
+                                                                             downloadButton("newick", 
+                                                                                            "Export tree in newick format", 
+                                                                                            style='padding:5px 10px; font-size:90%; background-color:white; color:black')),
+                                                            br()),
                                                    tabPanel("Difference", 
                                                             uiOutput("differencePlot.ui"),
                                                             br(),
@@ -163,7 +177,9 @@ ui <- fluidPage(theme = shinytheme("flatly"),  # defines theme of app
                                                             uiOutput("rfPlot.ui"),
                                                             br(),
                                                             conditionalPanel(condition = 'output.rfPlot', 
-                                                                             downloadButton("downloadrfplot", "Download plot as pdf", style='padding:5px 10px; font-size:90%; background-color:white; color:black')),
+                                                                             downloadButton("downloadrfplot", 
+                                                                                            "Download plot as pdf", 
+                                                                                            style='padding:5px 10px; font-size:90%; background-color:white; color:black')),
                                                             br(),
                                                             helpText("Calculation of pairwise RF distances can be computationally intensive. Reduce the number of considered trees to speed this up.")))
                                 )
@@ -185,7 +201,7 @@ server <- function(input, output, session) {
   
   # shut down R session when browser window is closed
   session$onSessionEnded(function() {
-    stopApp()
+   stopApp()
   })
   
   
@@ -229,7 +245,7 @@ server <- function(input, output, session) {
   # Reading the trace files
   tracedata <- reactive({
     req(input$tracefile)
-    # read in trace files (at least 1, try up to 4) 
+    # read in trace files (at least 1) 
     file1 <- input$tracefile$datapath[1]
     trace1 <- read.table(file1, 
                          sep = "\t", 
@@ -660,6 +676,7 @@ server <- function(input, output, session) {
     if(length(input$treefile$datapath)>1){
       treegen <- min(c(length(trees1()), length(trees2())))
     }
+    
     treegen
     })
   
@@ -668,12 +685,10 @@ server <- function(input, output, session) {
     req(input$treefile)
     tree1 <- trees1()[[1]]
     tiplabs <- list()
-    labels <-sort(tree1$tip.label)
-    for(i in 1:length(labels)){
-      tiplabs[[i]] <- labels[i]
-    }
-    names(tiplabs) <- tiplabs
-    tiplabs
+    labels <- sort(tree1$tip.label)
+    
+    # pickerInput requires list
+    as.list(labels)
   })
   
   # get the names of the chains from the tree file names
@@ -757,7 +772,7 @@ server <- function(input, output, session) {
   output$downloadtreePDF <- downloadHandler(filename = "treeplots.pdf",
                                             contentType = "application/pdf",
                                             content = function(file1) {
-                                              file.copy("treeplot.pdf", file1)
+                                              file.copy(".treeplot.pdf", file1)
                                         })
   ############################  
   
@@ -880,7 +895,7 @@ server <- function(input, output, session) {
       concolvec2 <- rep("black", length=length(currtree2$tip.label))
       concolvec2[which(concolors2.1==TRUE)] <- "#377eb8"
       concolvec2[which(concolors2.2==TRUE)] <- "#ff7f00"
-      concolvec2[which(concolors1.1==TRUE & concolors1.2==TRUE)] <- "#4daf4a"
+      concolvec2[which(concolors2.1==TRUE & concolors2.2==TRUE)] <- "#4daf4a"
      
       # plot
       plot(ladderize(currtree2), 
@@ -893,7 +908,7 @@ server <- function(input, output, session) {
     }  
     
     # Copy plot to device
-    dev.copy2pdf(file = "treeplot.pdf", 
+    dev.copy2pdf(file = ".treeplot.pdf", 
                  height=treeheight()/72, 
                  width=treewidth()/72)
     
@@ -938,7 +953,7 @@ server <- function(input, output, session) {
     sv <- prop.clades(contree1, trees1)
     contree1$node.label <- sv/length(trees1)
     contree1$node.label <- formatC(contree1$node.label, digits = 2, format = "f") # 2 decimals for pp values
-    
+   
     # do the rooting
     # unroot
     if(outgroup=="<None>"){
@@ -956,6 +971,31 @@ server <- function(input, output, session) {
                        outgroup = outgroup, 
                        resolve.root = TRUE)
     }
+    
+    # adjust node labels: 1) remove "root" label
+    contree1$node.label[contree1$node.label=="Root"] <- ""
+    
+    # convert to numeric 
+    contree1$node.label <- as.numeric(contree1$node.label)
+
+    # Collapse nodes below a posterior probability (inspired by http://evoslav.blogspot.com/2015/01/how-to-collapse-unsupported-branches-of.html)
+    # get position of nodes
+    collapse_nodes <- which(contree1$node.label < input$postprop) + length(contree1$tip.label)
+    
+    # get index of edges from these nodes
+    collapse_indexes <- which(contree1$edge[,2] %in% collapse_nodes)
+    
+    # assign 0 branch length
+    contree1$edge.length[collapse_indexes] <- 0 
+    
+    # use di2multi to collpase 0 branch lengths
+    # important: use tiny number for tol in order for short branches with high pp not to be collapsed
+    contree1 <- di2multi(contree1, tol = 1e-10000) 
+    
+    # remove node labels that correspond to collapsed branches
+    contree1$node.label[contree1$node.label<input$postprop] <- ""
+    
+    # call tree
     contree1
   })
   
@@ -983,7 +1023,7 @@ server <- function(input, output, session) {
     add.scale.bar(lwd = input$treecex)  
     
     # Copy plot to device
-    dev.copy2pdf(file = "treeplot.pdf", 
+    dev.copy2pdf(file = ".treeplot.pdf", 
                  height=treeheight()/72, 
                  width=treewidth()/72)
     
@@ -1080,7 +1120,7 @@ server <- function(input, output, session) {
       invisible()
     }
     
-    # plot 2 consensus tree next to each other, highlighting the nodes in each that are uniq
+    # plot 2 consensus tree next to each other, highlighting the nodes in each that are unique
     phylo.diff.new(contree1, contree2, 
                    cex = input$treecex, 
                    cex.main = input$treecex*1.1,
@@ -1090,7 +1130,7 @@ server <- function(input, output, session) {
                    coltip2 = colvec2)
     
     # Copy plot to device
-    dev.copy2pdf(file = "treeplot.pdf", 
+    dev.copy2pdf(file = ".treeplot.pdf", 
                  height=treeheight()/72, 
                  width=treewidth()/72)
     
@@ -1103,7 +1143,6 @@ server <- function(input, output, session) {
   })   
   
 
-  
   ###### TAB 4 
   # Plot 4 shows differences between trees across iterations and between chains 
   

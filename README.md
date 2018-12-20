@@ -3,7 +3,7 @@ This app can be used to evaluate the results of Phylobayes runs in an interactiv
 <br>
 
 ### Installation / access ###
-The app is hosted on shinyapps.io: https://gerthmicha.shinyapps.io/pbplot/ and can be accessed without installation. There is a usage limit of 25h per month however and if this is used up the app will be offline. To run it locally on your machine, open `R` and follow these instructions: 
+The app is hosted on shinyapps.io: https://gerthmicha.shinyapps.io/postpb/ and can be accessed without installation. There is a usage limit of 25h per month however and if this is used up the app will be offline. To run it locally on your machine, open `R` and follow these instructions: 
 ```R
 # Install required libraries
 install.packages(c( "ape", 
@@ -24,7 +24,7 @@ dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
-shiny::runGitHub("pbplot","gerthmicha")
+shiny::runGitHub("postpb","gerthmicha")
 ```
 A standalone version of the app with reduced functionality can be found on [github](https://github.com/gerthmicha/pbplot/README_rscript.md).
 <br>
@@ -58,4 +58,4 @@ Here, tree samples obtained with Phylobayes can be analysed (file name ending in
 tba
 <br>
 <br>
-For questions & comments please raise an issue at [github](https://github.com/gerthmicha/pbplot/issues)
+For questions & comments please raise an issue at [github](https://github.com/gerthmicha/postpb/issues)

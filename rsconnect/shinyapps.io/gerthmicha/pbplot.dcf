@@ -5,9 +5,9 @@ account: gerthmicha
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 383727
-bundleId: 1758764
+bundleId: 1775353
 url: https://gerthmicha.shinyapps.io/pbplot/
-when: 1544632469.75619
+when: 1545314888.33262
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: background.html|pbplot.R|plot.pdf|README_rscript.md|README.html|test.eps|test.pdf|treeplot.pdf
+ignoredFiles: .treeplot.pdf|pbplot.R|README_rscript.md|README.html
