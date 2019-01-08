@@ -90,8 +90,14 @@ img {
 .tabbed-pane {
   padding-top: 12px;
 }
+.html-widget {
+  margin-bottom: 20px;
+}
 button.code-folding-btn:focus {
   outline: none;
+}
+summary {
+  display: list-item;
 }
 </style>
 
@@ -100,14 +106,74 @@ button.code-folding-btn:focus {
 <div class="container-fluid main-container">
 
 <!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
 <script>
 $(document).ready(function () {
   window.buildTabsets("TOC");
 });
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
 </script>
 
 <!-- code folding -->
-
 
 
 
@@ -121,36 +187,72 @@ $(document).ready(function () {
 </div>
 
 
-<div id="httpsgerthmicha.shinyapps.iopbplot" class="section level4">
-<h4><a href="https://gerthmicha.shinyapps.io/pbplot/" class="uri">https://gerthmicha.shinyapps.io/pbplot/</a></h4>
-<p>This app can be used to plot trace files from Phylobayes runs which is helpful in assessing convergence and mixing of parameters. Input must be at least one, and at most four Phylobayes trace files from chains run with identical parameters.</p>
-<p>The app can be accessed through <a href="https://gerthmicha.shinyapps.io/pbplot/" class="uri">https://gerthmicha.shinyapps.io/pbplot/</a> or can be run as Shiny app locally:</p>
-<pre class="r"><code># Install required libraries
-install.packages(c(&quot;ggplot2&quot;, &quot;gridExtra&quot;, &quot;LaplacesDemon&quot;, &quot;markdown&quot;, &quot;shiny&quot;, &quot;shinythemes&quot;, &quot;shinycssloaders&quot;), dependencies = TRUE)
+<div id="background" class="section level3">
+<h3>Background</h3>
+<p>This app can be used to evaluate the results of <em>Phylobayes</em> runs in an interactive and graphical way. <a href="http://www.atgc-montpellier.fr/phylobayes/"><em>Phylobayes</em></a> is a Bayesian phylogenetics package intended mainly for protein sequence analyses. Although it comes with built-in methods for assessing convergence and mixing of parameters (<code>tracecomp</code> &amp; <code>bpcomp</code>), additional analyses are often helpful to evaluate the outcomes of a <em>Phylobayes</em> run. <em>postpb</em> bundles a number of common post-analyses and exploratory plotting approaches for <em>Phylobayes</em> in one shiny app. <br></p>
+</div>
+<div id="installation" class="section level3">
+<h3>Installation</h3>
+<p>To run <em>postpb</em> locally on your machine, open <code>R</code> and follow these instructions:</p>
+<pre class="r"><code># Install required libraries (skip if already installed)
+install.packages(c( &quot;ape&quot;,
+                    &quot;coda&quot;,
+                    &quot;distory&quot;,
+                    &quot;dplyr&quot;,
+                    &quot;DT&quot;,
+                    &quot;ggplot2&quot;,
+                    &quot;gridExtra&quot;,
+                    &quot;markdown&quot;,
+                    &quot;phytools&quot;,
+                    &quot;shiny&quot;,
+                    &quot;shinycssloaders&quot;,
+                    &quot;shinyjs&quot;,
+                    &quot;shinythemes&quot;,
+                    &quot;shinyWidgets&quot;), 
+                    dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
-shiny::runGitHub(&quot;pbplot&quot;,&quot;gerthmicha&quot;)</code></pre>
-<p><br></p>
+shiny::runGitHub(&quot;postpb&quot;,&quot;gerthmicha&quot;)</code></pre>
+<p>The app is also hosted on <a href="https://gerthmicha.shinyapps.io/postpb/">shinyapps.io</a> and can be accessed without installation. This is only recommended for testing though, as it will be slow for bigger files. There is also usage limit of 25h per month and if this is used up the app will be offline.</p>
+<p>A standalone version of the app with reduced functionality can be found on <a href="https://github.com/gerthmicha/pbplot/README_rscript.md">github</a>. <br></p>
 </div>
-<div id="pbpplot.r" class="section level4">
-<h4>pbpplot.R</h4>
-<p>This is the standalone version to be run locally as executable R script</p>
-<pre class="sh"><code>Usage: /usr/bin/pbplot.R [options]
-
-Options:
-    -b NUMBER, --burnin=NUMBER
-        number of burnin iterations to discard [required]
-
-    -f, --file
-        Shall plot be saved to pdf file instead of disp? [default: FALSE]
-
-    -h, --help
-        Show this help message and exit
-
-NOTE:   This script plots the parameters estimated during a phylobayes run.
-    It should be run in a directory containing 1–4 trace files created by phylobayes.
-    Requires R packages ggplot2, optparse, and gridExtra.</code></pre>
+<div id="usage" class="section level3">
+<h3>Usage</h3>
+<p>There are two modules in this app, accessible through the tabs in the navbar on top of this page: <strong>Traces</strong> and <strong>Trees</strong>.</p>
+<div id="traces" class="section level4">
+<h4>Traces</h4>
+<p>Here, Phylobayes trace files can be summarized (file name ending in <code>.trace</code>). Upload 1 or 2 trace files from Phylobayes chains that were run under identical options. Click through the tabs to access the different funtions. Use the sliders in the sidebar to adjust the options. Currently implemented functions:</p>
+<ul>
+<li>Plots of trace parameters (XY, violin, density)</li>
+<li>interactive burnin adjustment</li>
+<li>adjustment of plot appearance and size</li>
+<li>summary statistics for assessment of convergence, stationarity, and mixing</li>
+<li>pdf export</li>
+</ul>
+</div>
+<div id="trees" class="section level4">
+<h4>Trees</h4>
+<p>Here, tree samples obtained with Phylobayes can be analysed (file name ending in <code>.treelist</code>). Typically, one would upload 2 tree sample files from Phylobayes chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented functions:</p>
+<ul>
+<li>plotting of each tree sample for both chains side by side</li>
+<li>consensus tree including branch lengths and posterior probabilities</li>
+<li>consensus export in newick file format</li>
+<li>highlighting of conflicting nodes between the 2 consensus trees</li>
+<li>Robinson-Foulds distances of trees within and between chains</li>
+<li>basic tree manipulations: re-rooting, taxon coloring</li>
+<li>adjustment of plot appearance and size</li>
+<li>pdf export</li>
+</ul>
+</div>
+</div>
+<div id="example" class="section level3">
+<h3>Example</h3>
+<p>tba <br> <br></p>
+</div>
+<div id="notes" class="section level3">
+<h3>Notes</h3>
+<p>Most of this app is optimized for usage with 2 <em>Phylobayes</em> chains run under identical models with the same dataset, as this is the most typical usage. <br> <br> For questions &amp; comments please raise an issue at <a href="https://github.com/gerthmicha/postpb/issues">github</a></p>
 </div>
 
 

@@ -1,215 +1,23 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
-
-# load all libraries necessary for 
-# ui
-library(shiny)
-library(shinycssloaders)
-library(shinyjs)
-library(shinythemes)
-library(shinyWidgets)
-# & server
-library(coda)
-library(distory)
-library(dplyr)
-library(DT)
-library(ggplot2)
-library(gridExtra)
-library(markdown)
-library(phytools)
-library(tidyr)
-
-
-# Define UI
-ui <- fluidPage(theme = shinytheme("flatly"),  # defines theme of app
-          # Layout of app: 1 navbar with 3 tab panels. The first 2 tab panels have 1 sidebar + 1 main display (including multiple tabs each)
-          # Final tab panel is markdown help file 
-          navbarPage(HTML("postpb"),
-                     # first tab panel for trace analyses
-                     tabPanel("Parameters",
-                              fluidRow(
-                                column(4, wellPanel(  # the following defines the elements of the sidebar
-                                  fileInput("tracefile", "Select Phylobayes trace files",
-                                            multiple = TRUE,
-                                            accept = c(".trace")),
-                                  hr(),
-                                  uiOutput("burnin"),
-                                  uiOutput("whichchain"),
-                                  numericInput("prop", "Plot every Nth iteration",
-                                               value = 10,
-                                               width = "30%"),
-                                  sliderInput("cex", "Scaling factor for points and lines", 
-                                              min = 0.1, 
-                                              max = 10, 
-                                              value = 1, 
-                                              step = 0.1),
-                                  sliderInput("height", "Height of plot in pixels", 
-                                              min = 100, 
-                                              max = 5000, 
-                                              value = 1000, 
-                                              step = 100),
-                                  sliderInput("width", "Width of plot in pixels", 
-                                              min = 100, 
-                                              max = 5000, 
-                                              value = 1000, 
-                                              step = 100),
-                                  hr(),
-                                  conditionalPanel(condition = 'output.whichchain', 
-                                                   downloadButton("downloadPDF", "Download pdf of all trace plots"))
-                                )),
-                                column(8,   # the following defines the elements of the main display (4 tabs in total)
-                                       tabsetPanel(type = "tabs",
-                                                   tabPanel("Trace", 
-                                                            prettyCheckboxGroup(inputId = "traceplotstyle", 
-                                                                                label = "", 
-                                                                                choices = c("lines", "points"), 
-                                                                                selected = "lines", 
-                                                                                inline = TRUE, 
-                                                                                status = "primary",
-                                                                                icon = icon("check")),
-                                                            hr(),
-                                                            uiOutput("tracePlot.ui")),  
-                                                   tabPanel("Violin", 
-                                                            prettyCheckboxGroup(inputId = "violinplotstyle", 
-                                                                                label = "", 
-                                                                                choices = c("boxplot", "points"), 
-                                                                                selected = c("boxplot"), 
-                                                                                inline = TRUE, 
-                                                                                status = "primary",
-                                                                                icon = icon("check")),
-                                                            hr(),
-                                                            uiOutput("violinPlot.ui")),
-                                                   tabPanel("Density", 
-                                                            uiOutput("densePlot.ui")),
-                                                   tabPanel("Summary statistics", 
-                                                            withSpinner(DT::dataTableOutput("table", width = "80%"), 
-                                                                        color = "#2C4152", size=0.5), 
-                                                            conditionalPanel(condition = 'output.table',
-                                                                             br(), 
-                                                                             useShinyjs(), 
-                                                                             actionButton("explanation", 
-                                                                                          "Toggle explanations", 
-                                                                                          style='padding:5px 10px; font-size:90%; background-color:white; color:black'),
-                                                                             hidden(div(id="stats", includeMarkdown("stats.md"))))), 
-                                                   br())
-                                )
-                              )
-                     ),
-                     # second tab panel for tree analyses, set up as "trace" tab panel 
-                     tabPanel("Trees", 
-                              fluidRow(
-                                column(4, 
-                                       wellPanel(
-                                         fileInput("treefile", "Select Phylobayes tree files",
-                                                   multiple = TRUE,
-                                                   accept = ".treelist"),
-                                         hr(),
-                                         numericInput("treethin", "Consider every Nth tree",
-                                                      value = 10,
-                                                      width = "30%"),
-                                         uiOutput("treegens"),
-                                         uiOutput("conburnin"),
-                                         uiOutput("outgroups"),
-                                         conditionalPanel(condition='output.outgroups',
-                                                          actionGroupButtons(c("reroot", "midpoint", "unroot"),
-                                                                       c("Reroot with outgroup", "Midpoint rooting", "Unroot"), 
-                                                                       status = "primary",
-                                                                       size = "sm",
-                                                                       fullwidth = TRUE)),
-                                         hr(),
-                                         uiOutput("highlight"),
-                                         uiOutput("highlight2"),
-                                         conditionalPanel(condition='output.outgroups',
-                                                          helpText(HTML("<b>NOTE: Taxa selected twice will be highlighted in <font color=\"#4daf4a\">green</font></b>"))),
-                                         hr(),
-                                         sliderInput("treecex", 
-                                                     "Scaling factor for labels and lines", 
-                                                     min = 0.1, 
-                                                     max = 10, 
-                                                     value = 1, 
-                                                     step =  0.1),
-                                         sliderInput("treeheight", 
-                                                     "Height of plot in pixels", 
-                                                     min = 100, 
-                                                     max = 5000, 
-                                                     value = 800, 
-                                                     step = 100),
-                                         sliderInput("treewidth", 
-                                                     "Width of plot in pixels", 
-                                                     min = 100, 
-                                                     max = 5000, 
-                                                     value = 1000, 
-                                                     step = 100),
-                                       conditionalPanel(condition = 'output.conburnin', 
-                                                        downloadButton("downloadtreePDF", "Download pdf of current tree plot")))
-                                ),
-                                column(8, 
-                                       tabsetPanel(type = "tabs", 
-                                                   tabPanel("Trees", 
-                                                            uiOutput("treePlot.ui")),
-                                                   tabPanel("Consensus", 
-                                                            uiOutput("consensusPlot.ui"),
-                                                            conditionalPanel(condition = 'output.consensusPlot', 
-                                                                             sliderInput("postprop", 
-                                                                                         label = "Collapse branches with posterior probabilities lower than", 
-                                                                                         min = 0.5, 
-                                                                                         max = 1, 
-                                                                                         value = 0.5, 
-                                                                                         step = 0.05, 
-                                                                                         ticks = FALSE),
-                                                                             br(),
-                                                                             downloadButton("newick", 
-                                                                                            "Export tree in newick format", 
-                                                                                            style='padding:5px 10px; font-size:90%; background-color:white; color:black')),
-                                                            br()),
-                                                   tabPanel("Difference", 
-                                                            uiOutput("differencePlot.ui"),
-                                                            br(),
-                                                            helpText(HTML("Conflicting nodes between consensus trees will be highlighted in <font color=\"#FF1493\"><b>pink</b></font>."))),
-                                                   tabPanel("Pairwise Robinson-Foulds", 
-                                                            uiOutput("rfPlot.ui"),
-                                                            br(),
-                                                            conditionalPanel(condition = 'output.rfPlot', 
-                                                                             downloadButton("downloadrfplot", 
-                                                                                            "Download plot as pdf", 
-                                                                                            style='padding:5px 10px; font-size:90%; background-color:white; color:black')),
-                                                            br(),
-                                                            helpText("Calculation of pairwise RF distances can be computationally intensive. Reduce the number of considered trees to speed this up.")))
-                                )
-                              )          
-                     ),
-                     tabPanel("About",
-                              includeMarkdown("README.md"))
-          ))
-
-
-# Define server
 server <- function(input, output, session) {
   
   ###################
   # GENERAL OPTIONS #
   ###################
+  
   # increase maximum upload size of allocated memory 
   options(shiny.maxRequestSize = 500*1024^2)
   
   # shut down R session when browser window is closed
   session$onSessionEnded(function() {
-   stopApp()
+    stopApp()
   })
   
   
-                                                ############################
-                                                #>>>>>>>>>>>>><<<<<<<<<<<<<#
-#################################################>>>>>>> TRACE TAB <<<<<<<<#################################################
-                                                #>>>>>>>>>>>>><<<<<<<<<<<<<#
-                                                ############################
+  ############################
+  #>>>>>>>>>>>>><<<<<<<<<<<<<#
+  #################################################>>>>>>> TRACE TAB <<<<<<<<#################################################
+  #>>>>>>>>>>>>><<<<<<<<<<<<<#
+  ############################
   
   #########################
   # TRACE FILE PROPERTIES #
@@ -231,7 +39,7 @@ server <- function(input, output, session) {
                            sep = "\t", 
                            header = TRUE, 
                            comment.char = "")
-    ngen <- min(c(nrow(trace1), nrow(trace2)))
+      ngen <- min(c(nrow(trace1), nrow(trace2)))
     }
     ngen
   })
@@ -241,7 +49,7 @@ server <- function(input, output, session) {
     # get names of chains from trace file names
     strsplit(input$tracefile$name[1:length(input$tracefile$name)], ".trace", fixed = TRUE)
   })
-
+  
   # Reading the trace files
   tracedata <- reactive({
     req(input$tracefile)
@@ -272,7 +80,7 @@ server <- function(input, output, session) {
     # repeat same 2 steps for trace 2
     try(trace2 <- trace2[burnin+1:nrow(trace2), ], silent = TRUE)
     try(trace2 <- trace2[seq(from = 0, to = nrow(trace2), by= input$prop),], silent = TRUE)
-
+    
     
     # Create novel variable "trace", specifying which trace file the data originates from
     trace1$trace <- chainnames()[[1]][1]
@@ -285,7 +93,7 @@ server <- function(input, output, session) {
     
     # same for other trace files
     try(plotDF <- rbind(trace1[,c(1,4:ncol(trace1))],trace2[,c(1,4:ncol(trace2))]), silent=T)
-
+    
     # finally 
     plotDF <- gather(plotDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
     
@@ -445,7 +253,7 @@ server <- function(input, output, session) {
     
     vP1
   })
-
+  
   # density plot for traces – tab 3
   dP <- reactive({
     ggplot(traceDF())+
@@ -471,21 +279,21 @@ server <- function(input, output, session) {
   # get height & width of plot area from slider inputs
   plotheight <- reactive({
     input$height
-    })
+  })
   
   plotwidth <- reactive({
     input$width
-    })
+  })
   
   # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
   scalefactor <- reactive({(
     input$height+input$width)/2000
-    })
+  })
   
   # render all 3 plots
   output$tracePlot <- renderPlot({
     tP()
-    })
+  })
   
   output$tracePlot.ui <- renderUI({
     withSpinner(plotOutput("tracePlot", 
@@ -530,119 +338,119 @@ server <- function(input, output, session) {
                                                      buttons = c('copy', 'csv', 'pdf', 'print'), # options for downloading buttons
                                                      rowCallback = DT::JS( # the following defines the looks of the table: row names bold, and values outside of recommended range in red (see stats.md)
                                                        'function(row, data) {
-                                                                           $("td:eq(0)", row).css("fontWeight", "bold");
-                                                                           if (parseFloat(data[3]) < 100)
-                                                                           $("td:eq(3)", row).css("color", "red");
-                                                                           if (parseFloat(data[4]) > 2)
-                                                                           $("td:eq(4)", row).css("color", "red");
-                                                                           if (parseFloat(data[5]) > 2)
-                                                                           $("td:eq(5)", row).css("color", "red");
-                                                                           if (parseFloat(data[6]) > 0.3)
-                                                                           $("td:eq(6)", row).css("color", "red");
-                                                                           if (parseFloat(data[7]) > 1.2)
-                                                                           $("td:eq(7)", row).css("color", "red");
-                                                                           if (parseFloat(data[8]) > 1.2)
-                                                                           $("td:eq(8)", row).css("color", "red");
-                                                                           }'
+                                                       $("td:eq(0)", row).css("fontWeight", "bold");
+                                                       if (parseFloat(data[3]) < 100)
+                                                       $("td:eq(3)", row).css("color", "red");
+                                                       if (parseFloat(data[4]) > 2)
+                                                       $("td:eq(4)", row).css("color", "red");
+                                                       if (parseFloat(data[5]) > 2)
+                                                       $("td:eq(5)", row).css("color", "red");
+                                                       if (parseFloat(data[6]) > 0.3)
+                                                       $("td:eq(6)", row).css("color", "red");
+                                                       if (parseFloat(data[7]) > 1.2)
+                                                       $("td:eq(7)", row).css("color", "red");
+                                                       if (parseFloat(data[8]) > 1.2)
+                                                       $("td:eq(8)", row).css("color", "red");
+}'
                                                      )),
-                                         {
-                         req(input$tracefile)
-                         
-                         # spread the trace file                   
-                         traceDF <- spread(tracedata(), variable, value)
-                         
-                         # calculate means & sds for all numeric columns
-                         Mean <- summarise_if(traceDF,is.numeric, mean)
-                         SD <- summarise_if(traceDF,is.numeric, sd)
-                         
-                         # same for ess
-                         ess1 <- traceDF %>% 
-                           filter(trace==chainnames()[[1]][1]) %>% 
-                           summarize_if(is.numeric, effectiveSize)
-                         
-                         # ess for chain 2 (if present, merge 2 estimates)
-                         try(ess2 <- traceDF %>% 
-                               filter(trace==chainnames()[[2]][1]) %>% 
-                               summarize_if(is.numeric, effectiveSize), 
-                             silent = TRUE)
-                         ess <- ess1
-                         try(ess <- ess1 + ess2, silent = TRUE)
-                         
-                         # calculate geweke for chain 1 only
-                         traceDF1 <- traceDF %>% filter(trace==chainnames()[[1]][1])
-                         traceDF1 <- subset(traceDF1, select = -trace)
-                         geweke1 <- geweke.diag(traceDF1)[[1]]
-                         geweke1 <- abs(geweke1)
-                         
-                         # merge means, sd, ess, and geweke into results dataframe
-                         results <- data.frame(t(rbind(Mean, SD, ess, geweke1)))
-                         names(results) <- c("Mean", "SD", "ESS", paste("Geweke", chainnames()[[1]][1], sep=" "))
-                         
-                         # remove 'iter' & 'time' variables
-                         results <- results[2:nrow(results),]
-                         
-                         if(length(input$tracefile$datapath)==2){
-                           # calculate geweke for chain 2 only
-                           traceDF2 <- traceDF %>% filter(trace==chainnames()[[2]][1])
-                           traceDF2 <- subset(traceDF2, select = -trace)
-                           geweke2 <- geweke.diag(traceDF2)[[1]]
-                           geweke2 <- abs(geweke2)
-                           geweke2 <- data.frame(geweke2[2:length(geweke2)])
-                           names(geweke2) <- paste("Geweke", chainnames()[[2]][1], sep=" ")
-                          
-                           # add geweke results to dataframe
-                           results <- cbind(results, geweke2)
-                           
-                           # calculate discrepancy according to phylobayes manual
-                           # first, get means and sd for each variable and each chain sepately
-                           means1 <- traceDF %>% filter(trace==chainnames()[[1]][1]) %>% summarize_if(is.numeric, mean)
-                           means2 <- traceDF %>% filter(trace==chainnames()[[2]][1]) %>% summarize_if(is.numeric, mean)
-                           sd1 <- traceDF %>% filter(trace==chainnames()[[1]][1]) %>% summarize_if(is.numeric, sd, na.rm = TRUE)
-                           sd2 <- traceDF %>% filter(trace==chainnames()[[2]][1]) %>% summarize_if(is.numeric, sd, na.rm = TRUE)
-                           
-                           # do the calculation and add to results dataframe
-                           Discrepancy <- 2*abs(means1 - means2) / (sd1 + sd2)
-                           Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
-                           names(Discrepancy) <- "Discrepancy"
-                           results <- cbind(results, Discrepancy)
-                           
-                           # finally, do Gelman & Rubin convergence estimate
-                           # for this, chains must be of identical length, so first determine shorter chain
-                           min_chainlength <- min(c(nrow(traceDF1), nrow(traceDF2)))
-                           
-                           # then limit the data to the minimal generation and combine as mcmc list
-                           tracelist <- list(mcmc(traceDF1[1:min_chainlength,2:ncol(traceDF1)]), mcmc(traceDF2[1:min_chainlength,2:ncol(traceDF2)]))
-                           
-                           # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe 
-                           gel.res<- gelman.diag(tracelist, autoburnin = F)
-                           gel.point <- data.frame(gel.res$psrf[,1])
-                           gel.ci <- data.frame(gel.res$psrf[,2])
-                           names(gel.point) <- "Gelman & Rubin point estimate"
-                           names(gel.ci) <- "Gelman & Rubin 95% CI"
-                           gel.point <- tibble::rownames_to_column(gel.point)
-                           gel.ci <- tibble::rownames_to_column(gel.ci)
-                           results <- tibble::rownames_to_column(results)
-                           results <- full_join(results, gel.point, by = "rowname")
-                           results <- full_join(results, gel.ci, by = "rowname")
-                           row.names(results) <- results$rowname
-                           results <- results[,2:ncol(results)]
-                         }
-                         
-                         # for the numeric values in dataframe, round using 2 decimals
-                         is.num <- sapply(results, is.numeric)
-                         results[is.num] <- lapply(results[is.num], round, 2)
-                         
-                         # call dataframe
-                         results
-                         })
+                                      {
+                                        req(input$tracefile)
+                                        
+                                        # spread the trace file                   
+                                        traceDF <- spread(tracedata(), variable, value)
+                                        
+                                        # calculate means & sds for all numeric columns
+                                        Mean <- summarise_if(traceDF,is.numeric, mean)
+                                        SD <- summarise_if(traceDF,is.numeric, sd)
+                                        
+                                        # same for ess
+                                        ess1 <- traceDF %>% 
+                                          filter(trace==chainnames()[[1]][1]) %>% 
+                                          summarize_if(is.numeric, effectiveSize)
+                                        
+                                        # ess for chain 2 (if present, merge 2 estimates)
+                                        try(ess2 <- traceDF %>% 
+                                              filter(trace==chainnames()[[2]][1]) %>% 
+                                              summarize_if(is.numeric, effectiveSize), 
+                                            silent = TRUE)
+                                        ess <- ess1
+                                        try(ess <- ess1 + ess2, silent = TRUE)
+                                        
+                                        # calculate geweke for chain 1 only
+                                        traceDF1 <- traceDF %>% filter(trace==chainnames()[[1]][1])
+                                        traceDF1 <- subset(traceDF1, select = -trace)
+                                        geweke1 <- geweke.diag(traceDF1)[[1]]
+                                        geweke1 <- abs(geweke1)
+                                        
+                                        # merge means, sd, ess, and geweke into results dataframe
+                                        results <- data.frame(t(rbind(Mean, SD, ess, geweke1)))
+                                        names(results) <- c("Mean", "SD", "ESS", paste("Geweke", chainnames()[[1]][1], sep=" "))
+                                        
+                                        # remove 'iter' & 'time' variables
+                                        results <- results[2:nrow(results),]
+                                        
+                                        if(length(input$tracefile$datapath)==2){
+                                          # calculate geweke for chain 2 only
+                                          traceDF2 <- traceDF %>% filter(trace==chainnames()[[2]][1])
+                                          traceDF2 <- subset(traceDF2, select = -trace)
+                                          geweke2 <- geweke.diag(traceDF2)[[1]]
+                                          geweke2 <- abs(geweke2)
+                                          geweke2 <- data.frame(geweke2[2:length(geweke2)])
+                                          names(geweke2) <- paste("Geweke", chainnames()[[2]][1], sep=" ")
+                                          
+                                          # add geweke results to dataframe
+                                          results <- cbind(results, geweke2)
+                                          
+                                          # calculate discrepancy according to phylobayes manual
+                                          # first, get means and sd for each variable and each chain sepately
+                                          means1 <- traceDF %>% filter(trace==chainnames()[[1]][1]) %>% summarize_if(is.numeric, mean)
+                                          means2 <- traceDF %>% filter(trace==chainnames()[[2]][1]) %>% summarize_if(is.numeric, mean)
+                                          sd1 <- traceDF %>% filter(trace==chainnames()[[1]][1]) %>% summarize_if(is.numeric, sd, na.rm = TRUE)
+                                          sd2 <- traceDF %>% filter(trace==chainnames()[[2]][1]) %>% summarize_if(is.numeric, sd, na.rm = TRUE)
+                                          
+                                          # do the calculation and add to results dataframe
+                                          Discrepancy <- 2*abs(means1 - means2) / (sd1 + sd2)
+                                          Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
+                                          names(Discrepancy) <- "Discrepancy"
+                                          results <- cbind(results, Discrepancy)
+                                          
+                                          # finally, do Gelman & Rubin convergence estimate
+                                          # for this, chains must be of identical length, so first determine shorter chain
+                                          min_chainlength <- min(c(nrow(traceDF1), nrow(traceDF2)))
+                                          
+                                          # then limit the data to the minimal generation and combine as mcmc list
+                                          tracelist <- list(mcmc(traceDF1[1:min_chainlength,2:ncol(traceDF1)]), mcmc(traceDF2[1:min_chainlength,2:ncol(traceDF2)]))
+                                          
+                                          # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe 
+                                          gel.res<- gelman.diag(tracelist, autoburnin = F)
+                                          gel.point <- data.frame(gel.res$psrf[,1])
+                                          gel.ci <- data.frame(gel.res$psrf[,2])
+                                          names(gel.point) <- "Gelman & Rubin point estimate"
+                                          names(gel.ci) <- "Gelman & Rubin 95% CI"
+                                          gel.point <- tibble::rownames_to_column(gel.point)
+                                          gel.ci <- tibble::rownames_to_column(gel.ci)
+                                          results <- tibble::rownames_to_column(results)
+                                          results <- full_join(results, gel.point, by = "rowname")
+                                          results <- full_join(results, gel.ci, by = "rowname")
+                                          row.names(results) <- results$rowname
+                                          results <- results[,2:ncol(results)]
+                                        }
+                                        
+                                        # for the numeric values in dataframe, round using 2 decimals
+                                        is.num <- sapply(results, is.numeric)
+                                        results[is.num] <- lapply(results[is.num], round, 2)
+                                        
+                                        # call dataframe
+                                        results
+                                      })
   ######################
   
-
-                                                  ###########################
-                                                  #>>>>>>>>>>>>><<<<<<<<<<<<#
+  
+  ###########################
+  #>>>>>>>>>>>>><<<<<<<<<<<<#
   #################################################>>>>>>> TREE TAB <<<<<<<<#################################################
-                                                  #>>>>>>>>>>>>><<<<<<<<<<<<#
-                                                  ###########################  
+  #>>>>>>>>>>>>><<<<<<<<<<<<#
+  ###########################  
   
   
   ########################
@@ -669,7 +477,7 @@ server <- function(input, output, session) {
       trees2.1
     }
   })
-
+  
   # determine number of tree generations (smaller number from both files) 
   ngentree <- reactive({
     treegen <- length(trees1())
@@ -678,7 +486,7 @@ server <- function(input, output, session) {
     }
     
     treegen
-    })
+  })
   
   # extract the tree tip labels (= taxon names) 
   tipnames <- reactive({
@@ -710,11 +518,13 @@ server <- function(input, output, session) {
                 min = 1, 
                 max = ngentree(), 
                 value = 1, 
-                step = 1, 
+                step = 1,
+                ticks = FALSE,
                 animate = animationOptions(interval = 1000,  # this adds a button that animates an iteration through all tree generations
                                            loop = TRUE, 
-                                           playButton = tags$h4(tags$b("> PLAY <")), pauseButton = tags$h4(tags$b("> PAUSE <"))))
-                                           # custom play buttons with larger font  
+                                           playButton = tags$button("PLAY", style='border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold'), 
+                                           pauseButton = tags$button("PAUSE", style='border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold')))
+    # custom play buttons with larger font  
   })
   
   # Slider that determines the number of burnin generations
@@ -773,7 +583,7 @@ server <- function(input, output, session) {
                                             contentType = "application/pdf",
                                             content = function(file1) {
                                               file.copy(".treeplot.pdf", file1)
-                                        })
+                                            })
   ############################  
   
   ################################
@@ -848,8 +658,8 @@ server <- function(input, output, session) {
     # root with outgroup if chosen
     if(outgroup!="<Midpoint>" & outgroup!="<None>"){
       currtree1<- root(trees1()[[input$generation]], 
-           outgroup = outgroup, 
-           resolve.root = TRUE)
+                       outgroup = outgroup, 
+                       resolve.root = TRUE)
     }
     
     # Create tip label color vector from highlight slider options (need to do this after rooting, as this impacts tip label order)
@@ -885,8 +695,8 @@ server <- function(input, output, session) {
       # outgroup root
       if(outgroup!="<Midpoint>" & outgroup!="<None>"){
         currtree2 <- root(trees2()[[input$generation]], 
-                         outgroup = outgroup, 
-                         resolve.root = TRUE)
+                          outgroup = outgroup, 
+                          resolve.root = TRUE)
       }
       
       # color vector
@@ -896,7 +706,7 @@ server <- function(input, output, session) {
       concolvec2[which(concolors2.1==TRUE)] <- "#377eb8"
       concolvec2[which(concolors2.2==TRUE)] <- "#ff7f00"
       concolvec2[which(concolors2.1==TRUE & concolors2.2==TRUE)] <- "#4daf4a"
-     
+      
       # plot
       plot(ladderize(currtree2), 
            cex = input$treecex, 
@@ -953,7 +763,7 @@ server <- function(input, output, session) {
     sv <- prop.clades(contree1, trees1)
     contree1$node.label <- sv/length(trees1)
     contree1$node.label <- formatC(contree1$node.label, digits = 2, format = "f") # 2 decimals for pp values
-   
+    
     # do the rooting
     # unroot
     if(outgroup=="<None>"){
@@ -968,8 +778,8 @@ server <- function(input, output, session) {
     # root with outgroup
     if(outgroup!="<Midpoint>" & outgroup!="<None>"){
       contree1<- root(contree1, 
-                       outgroup = outgroup, 
-                       resolve.root = TRUE)
+                      outgroup = outgroup, 
+                      resolve.root = TRUE)
     }
     
     # adjust node labels: 1) remove "root" label
@@ -977,7 +787,7 @@ server <- function(input, output, session) {
     
     # convert to numeric 
     contree1$node.label <- as.numeric(contree1$node.label)
-
+    
     # Collapse nodes below a posterior probability (inspired by http://evoslav.blogspot.com/2015/01/how-to-collapse-unsupported-branches-of.html)
     # get position of nodes
     collapse_nodes <- which(contree1$node.label < input$postprop) + length(contree1$tip.label)
@@ -1046,8 +856,8 @@ server <- function(input, output, session) {
                  digits = 10, tree.names = FALSE)
     }
   )
-
-
+  
+  
   
   ###### TAB 3 
   # Plot 3 shows 2 consensus plots with comparison 
@@ -1067,7 +877,7 @@ server <- function(input, output, session) {
     validate(
       need(outgroup!="<Midpoint>", "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
     )
-
+    
     # create majority rule consensus for tree from both chains
     trees1 <- trees1()[(input$conburnin+1):length(trees1())]
     contree1 <- consensus(trees1, p = 0.5)
@@ -1113,7 +923,7 @@ server <- function(input, output, session) {
       treeB.cs <- rep("black", dim(y$edge)[1])
       treeB.cs[uniqT2] = "#FF1493"
       treeB.lw <- rep(input$treecex, dim(x$edge)[1])
-      treeB.lw[uniqT1] = input$treecex*2
+      treeB.lw[uniqT2] = input$treecex*2
       par(mfrow = c(1, 2))
       plot(x, edge.color = treeA.cs, main=main1, tip.color=coltip1, edge.width= treeA.lw, ...)
       plot(y, edge.color = treeB.cs, main=main2, tip.color=coltip2, edge.width= treeB.lw, direction = "leftwards", ...)
@@ -1142,14 +952,14 @@ server <- function(input, output, session) {
     withSpinner(plotOutput("differencePlot", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
   })   
   
-
+  
   ###### TAB 4 
   # Plot 4 shows differences between trees across iterations and between chains 
   
   rP <- reactive({
     
     req(input$treefile)
-
+    
     # read in tree file and create vector for results
     trees1 <- trees1()[(input$conburnin+1):length(trees1())]
     rf <- vector(mode = "numeric")
@@ -1220,7 +1030,7 @@ server <- function(input, output, session) {
     
     # call plot
     RFggplot 
-  
+    
   })
   
   # render plot
@@ -1235,36 +1045,131 @@ server <- function(input, output, session) {
   
   # create download button for plot
   output$downloadrfplot <- downloadHandler(filename = "RFplot.pdf",
-                                        content = function(file3) {
-                                          pdf(file3,  height=input$height/144, width=input$width/72)
-                                          grid.arrange(rP(), ncol=1)
-                                          dev.off()
-                                        })
+                                           content = function(file3) {
+                                             pdf(file3,  height=input$height/144, width=input$width/72)
+                                             grid.arrange(rP(), ncol=1)
+                                             dev.off()
+                                           })
   
-} 
+  ##### Tab5
+  # Tab 4 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group. 
+  
+  # Picker input to chose which taxa to check (similar to huíghlight color choser)
+  
+  output$bpselect <- renderUI({
+    req(input$treefile)
+    pickerInput("bpselect", 
+                label = ("Select taxa"),
+                choices=tipnames(), 
+                multiple=TRUE, 
+                options = list(`selected-text-format` = "count > 2",
+                               `count-selected-text` = "{0} taxa",
+                               `actions-box` = TRUE,     # enables 'select-all' and 'select none' buttons
+                               `live-search` = TRUE,
+                               `width` = TRUE),  
+                inline = FALSE,
+                width = "400px")
+  })
+  
+  bpsupport <-reactive({
+    
+    # here, remove burnin from trees before plotting 
+    alltrees <- trees1()[(input$conburnin+1):length(trees1())]
+    
+    # if 2 tree files are present, merge
+    if(length(input$treefile$name)==2){
+      trees2 <- trees2()[(input$conburnin+1):length(trees2())]
+      alltrees <- c(alltrees, trees2)
+    }
+    
+    # check if taxa from the list are monophyletic (for whole list of trees)
+    
+    bpcount <- lapply(alltrees, is.monophyletic, tips = selectedtax())
+    
+    # count number of "TRUE"
+    monotrue <- sum(unlist(bpcount))
+    
+    # summarize results in list
+    bpsupport <- list(absolute = monotrue,
+                      relative = formatC(monotrue/length(alltrees)*100, digits = 2, format = "f"),
+                      total = length(unlist(bpcount)))
 
-# Run the application 
-shinyApp(ui = ui, server = server)
+    bpsupport
+  })
+  
+  selectedtax <- reactive({
+    if(length(input$bpselect) > 0 & input$bptext == ""){
+      selectedtax <- input$bpselect
+    }
+    if(input$bptext != ""){  
+      selectedtax <- as.character(str_split(input$bptext, "\n", simplify = TRUE))
+      selectedtax <- unique(selectedtax[selectedtax!=""])
+    }
+    
+    selectedtax
+  })
+  
+  output$bipart <- renderText({
+    req(input$treefile, selectedtax())
+
+    validate(
+      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu.")
+    )
+    
+    paste0("The ", "<b>", as.character(length(selectedtax())), "</b>",
+           " selected taxa are monophyletic in ",
+           "<b>", as.character(bpsupport()["absolute"]), "</b>",
+           " out of ", 
+           "<b>", as.character(bpsupport()["total"]), "</b>",
+           " trees (",  
+           "<b>", as.character(bpsupport()["relative"]), "</b>",
+           "%).")
+                
+          
+    
+  })
+
+  output$bipartPlot <- renderPlot({
+    req(input$treefile, selectedtax())
+    validate(
+      need(length(selectedtax()) > 1, message = FALSE)
+    )
+    alltips <- tipnames()
+    selecttips <- selectedtax()
+    inverttips <- alltips[!alltips %in% selecttips]
+    
+    str1 <- paste("(", selecttips, "),", sep="", collapse ="")
+    str1 <- substr(str1, 1, nchar(str1)-1)
+    str2 <- paste("(", inverttips, "),", sep="", collapse ="")
+    str2 <- substr(str2, 1, nchar(str2)-1)
+    
+    bipartition <- paste0("(", str2, "),", "(", str1, ");")
+    bipartition_plot <- read.newick(text=bipartition)
+    
+    bipartition_plot$edge.length <- rep(1, length(bipartition_plot$edge/2))
+    
+    edge.highlight <- which.edge(bipartition_plot, selecttips) 
+    
+    edgecolor <- rep("black", Nedge(bipartition_plot)) 
+    edgecolor[edge.highlight]<-"#FF1493"
+    
+    edgewidth <- rep(1, Nedge(bipartition_plot)) 
+    edgewidth[edge.highlight] <-2
+    
+    plot(bipartition_plot, type="p", no.margin=T, cex=input$treecex, edge.color = edgecolor, edge.width = edgewidth*input$treecex)
+    
+    
+  })
+  
+  output$bipartPlot.ui <- renderUI({
+    req(input$treefile, selectedtax())
+    validate(
+      need(length(selectedtax()) > 1, message = FALSE)
+    )
+    plotOutput("bipartPlot", height=treeheight(), width=treewidth())
+  })   
+  
+  } 
 
 
-#   LICENSE INFORMATION
-#
-#   Copyright 2018 Michael Gerth
-#   
-#   Permission is hereby granted, free of charge, to any person obtaining a copy of 
-#   this software and associated documentation files (the "Software"), to deal
-#   in the Software without restriction, including without limitation the rights to 
-#   use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
-#   of the Software, and to permit persons to whom the Software is furnished to do 
-#   so, subject to the following conditions:
-#   
-#   The above copyright notice and this permission notice shall be included in all 
-#   copies or substantial portions of the Software.
-# 
-#   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-#   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-#   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-#   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-#   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-#   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
-#   SOFTWARE.
+
