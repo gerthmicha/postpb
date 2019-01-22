@@ -187,24 +187,24 @@ $(document).ready(function () {
 </div>
 
 
-<div id="background" class="section level3">
-<h3>Background</h3>
-<p>This app can be used to evaluate the results of <em>Phylobayes</em> runs in an interactive and graphical way. <a href="http://www.atgc-montpellier.fr/phylobayes/"><em>Phylobayes</em></a> is a Bayesian phylogenetics package intended mainly for protein sequence analyses. Although it comes with built-in methods for assessing convergence and mixing of parameters (<code>tracecomp</code> &amp; <code>bpcomp</code>), additional analyses are often helpful to evaluate the outcomes of a <em>Phylobayes</em> run. <em>postpb</em> bundles a number of common post-analyses and exploratory plotting approaches for <em>Phylobayes</em> in one shiny app. <br></p>
+<div id="about" class="section level3">
+<h3>About</h3>
+<p>This app can be used to evaluate the results of Bayesian phylogentics software packages (such as <a href="http://www.atgc-montpellier.fr/phylobayes/"><em>Phylobayes</em></a> and <a href="http://nbisweden.github.io/MrBayes/"><em>MrBayes</em></a>) in an interactive and graphical way. Although both programmes come with built-in methods for assessing convergence and mixing of parameters, additional analyses are often helpful when interpreting the outcomes of Bayesian phylogenetics software. <em>postpb</em> bundles a number of common post-analyses and exploratory plotting approaches in one shiny app.</p>
+</div>
+<div id="notes" class="section level3">
+<h3>Notes</h3>
+<p>This app is optimized and tested for usage with <em>Phylobayes</em> and <em>MrBayes</em> output files, but should work for any other Bayesian phylogenetic software that produces tabulated parameter files and tree files in Newick or Nexus format. It currently supports analysis of up to 4 chains, which should have been run under identical models and the same dataset.</p>
 </div>
 <div id="installation" class="section level3">
 <h3>Installation</h3>
 <p>To run <em>postpb</em> locally on your machine, open <code>R</code> and follow these instructions:</p>
 <pre class="r"><code># Install required libraries (skip if already installed)
-install.packages(c( &quot;ape&quot;,
-                    &quot;coda&quot;,
-                    &quot;distory&quot;,
+install.packages(c( &quot;distory&quot;,
                     &quot;dplyr&quot;,
                     &quot;DT&quot;,
-                    &quot;ggplot2&quot;,
                     &quot;gridExtra&quot;,
                     &quot;markdown&quot;,
                     &quot;phytools&quot;,
-                    &quot;shiny&quot;,
                     &quot;shinycssloaders&quot;,
                     &quot;shinyjs&quot;,
                     &quot;shinythemes&quot;,
@@ -215,44 +215,90 @@ install.packages(c( &quot;ape&quot;,
 library(shiny)
 shiny::runGitHub(&quot;postpb&quot;,&quot;gerthmicha&quot;)</code></pre>
 <p>The app is also hosted on <a href="https://gerthmicha.shinyapps.io/postpb/">shinyapps.io</a> and can be accessed without installation. This is only recommended for testing though, as it will be slow for bigger files. There is also usage limit of 25h per month and if this is used up the app will be offline.</p>
-<p>A standalone version of the app with reduced functionality can be found on <a href="https://github.com/gerthmicha/pbplot/README_rscript.md">github</a>. <br></p>
+<p>A commandline version of the app with reduced functionality can be found on <a href="https://github.com/gerthmicha/pbplot/README_rscript.md">github</a>. <br></p>
 </div>
 <div id="usage" class="section level3">
 <h3>Usage</h3>
-<p>There are two modules in this app, accessible through the tabs in the navbar on top of this page: <strong>Traces</strong> and <strong>Trees</strong>.</p>
+<p>There are two modules in this app, accessible through the tabs in the navbar on top of this page: <strong>Traces</strong> and <strong>Trees</strong>. Global options can be found on the sidebar on the left, and options specific for each analysis type will be in the main window.</p>
 <div id="traces" class="section level4">
 <h4>Traces</h4>
-<p>Here, Phylobayes trace files can be summarized (file name ending in <code>.trace</code>). Upload 1 or 2 trace files from Phylobayes chains that were run under identical options. Click through the tabs to access the different funtions. Use the sliders in the sidebar to adjust the options. Currently implemented functions:</p>
+<p>Here, parameter files from Phylobayes or MrBayes can be summarized (file name ending in <code>.trace</code> or <code>.p</code>). Upload 1–4 of trace files from mcmc chains that were run under identical options. Click through the tabs to access the different funtions. Use the sliders in the sidebar to adjust the options. Currently implemented functions:</p>
+<p><strong>Global options for all tabs (in sidebar)</strong></p>
 <ul>
-<li>Plots of trace parameters (XY, violin, density)</li>
-<li>interactive burnin adjustment</li>
-<li>adjustment of plot appearance and size</li>
-<li>summary statistics for assessment of convergence, stationarity, and mixing</li>
-<li>pdf export</li>
+<li>Upload and select which trace files to analyse</li>
+<li>Thinning interval [default: consider every 10th generation]</li>
+<li>burnin adjustment [default: 20% of shortest chain]</li>
+<li>Plot adjustments (size of plot area, size of lines &amp; points)</li>
+<li>Download of all plots in single PDF</li>
+</ul>
+<p><strong>XY tab</strong></p>
+<ul>
+<li>XY plots of all parameters over mcmc generation</li>
+</ul>
+<p><strong>Violin tab</strong></p>
+<ul>
+<li>Violin plots of all parameters</li>
+</ul>
+<p><strong>Density tab</strong></p>
+<ul>
+<li>Density plots of all parameters</li>
+</ul>
+<p><strong>Summary statistics tab</strong></p>
+<ul>
+<li>Various statistics for assessing convergence, stationarity, and mixing of chains</li>
+<li>Export in several formats</li>
 </ul>
 </div>
 <div id="trees" class="section level4">
 <h4>Trees</h4>
-<p>Here, tree samples obtained with Phylobayes can be analysed (file name ending in <code>.treelist</code>). Typically, one would upload 2 tree sample files from Phylobayes chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented functions:</p>
+<p>Here, tree samples obtained with Phylobayes or MrBayes can be analysed (file name ending in <code>.treelist</code> or <code>.t</code>). Typically, one would upload 2–4 tree sample files from mcmc chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented functions:</p>
+<p><strong>Global options for all tabs (in sidebar)</strong></p>
 <ul>
-<li>plotting of each tree sample for both chains side by side</li>
-<li>consensus tree including branch lengths and posterior probabilities</li>
-<li>consensus export in newick file format</li>
-<li>highlighting of conflicting nodes between the 2 consensus trees</li>
-<li>Robinson-Foulds distances of trees within and between chains</li>
-<li>basic tree manipulations: re-rooting, taxon coloring</li>
-<li>adjustment of plot appearance and size</li>
-<li>pdf export</li>
+<li>Upload and select which tree files to analyse</li>
+<li>Thinning interval [default: consider every 10th generation]</li>
+<li>Burnin adjustment [default: 20% of shortest chain]</li>
+<li>Select outgroup(s) for rooting, reroot with outgroup, midpoint, or unroot</li>
+<li>Highlighting taxa (three different colors)</li>
+<li>Formating of tree labels</li>
+<li>Plot adjustments (size of plot area, size of lines &amp; points)</li>
+<li>Download of currently displayed tree plot</li>
 </ul>
+<p><strong>Trees tab</strong></p>
+<ul>
+<li>Plot trees for chains side by side, browse through mcmc generations (can be animated)</li>
+</ul>
+<p><strong>Consensus tab</strong></p>
+<ul>
+<li>Consensus tree including branch lengths and posterior probabilities (pp)</li>
+<li>Collapse branches below interactively chosen pp</li>
+<li>Export in newick file format</li>
+</ul>
+<p><strong>Difference</strong> * Highlight conflicting nodes between consensus trees of all chains (requires at least 2 tree files)</p>
+<p><strong>Pairwise Robinson-Foulds</strong> * Plot Robinson-Foulds distances of trees within and between chains over generation</p>
+<p><strong>Bipartition support</strong> * Posterior probabilities for any taxonomic group in posterior sample of trees.</p>
 </div>
 </div>
 <div id="example" class="section level3">
 <h3>Example</h3>
 <p>tba <br> <br></p>
 </div>
-<div id="notes" class="section level3">
-<h3>Notes</h3>
-<p>Most of this app is optimized for usage with 2 <em>Phylobayes</em> chains run under identical models with the same dataset, as this is the most typical usage. <br> <br> For questions &amp; comments please raise an issue at <a href="https://github.com/gerthmicha/postpb/issues">github</a></p>
+<div id="citation" class="section level3">
+<h3>Citation</h3>
+<p>If you use postpb in your research, I would if you could cite it as</p>
+<p>“Michael Gerth (2019) Postpb. Available under <a href="https://github.com/gerthmicha/postpb" class="uri">https://github.com/gerthmicha/postpb</a>”.</p>
+<p>A preprint describing its functionality is in preparation.</p>
+<p>Please also cite the appropriate R packages listed below:</p>
+<p><strong>Tree plots, RF and consensus calculations:</strong></p>
+<ul>
+<li><p>Paradis, E., Claude, J. and Strimmer, K. (2004) APE: analyses of phylogenetics and evolution in R language. Bioinformatics, 20, 289–290. <a href="https://cran.r-project.org/package=ape" class="uri">https://cran.r-project.org/package=ape</a></p></li>
+<li><p>Revell, L. J. (2012) phytools: An R package for phylogenetic comparative biology (and other things). Methods Ecol. Evol., 3, 217-223. <a href="https://cran.r-project.org/package=phytools" class="uri">https://cran.r-project.org/package=phytools</a></p></li>
+<li><p>Chakerian, J. and Holmes, S. P. Computational Tools for Evaluating Phylogenetic and Heirarchical Clustering Trees. arXiv:1006.1015v1. <a href="https://cran.r-project.org/package=distory" class="uri">https://cran.r-project.org/package=distory</a></p></li>
+</ul>
+<p><strong>MCMC diagnostics:</strong></p>
+<ul>
+<li>Plummer, M., Best, N., Cowles, K. and Vines, K. (2006) CODA: convergence diagnosis and output analysis for MCMC. R News, 6, 7–11. <a href="https://cran.r-project.org/package=coda" class="uri">https://cran.r-project.org/package=coda</a></li>
+</ul>
+<p><br> <br> ### Questions, comments, bugs ### Please raise an issue at <a href="https://github.com/gerthmicha/postpb/issues">github</a> <br></p>
 </div>
 
 
