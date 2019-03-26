@@ -1,0 +1,4 @@
+
+**Example 1** is taken from [Kocot et al. (2017)](https://doi.org/10.1093/sysbio/syw079), and contains the first 5,000 iterations of their *Phylobayes* analysis of the "LB_106" matrix under the CAT+GTR model. The example contains traces and trees for 4 chains. Please refer to the paper for details on how the dataset was compiled. All data associated with this paper is accessible under https://doi.org/10.5061/dryad.30k4v.2. 
+
+**Example 2** is a *MrBayes* analysis of the "primates" alignment that is distributed with *MrBayes* (https://github.com/NBISweden/MrBayes/tree/develop/examples) and is originally from [Hayasaka et al. (1988)](https://doi.org/10.1093/oxfordjournals.molbev.a040524). The analysis was run under a HKY+G model using 2x4 chains for 1,000,000 generations with a sampling frequency of 50. 

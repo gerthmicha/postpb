@@ -1,105 +1,137 @@
 server <- function(input, output, session) {
-  
-  
-# GENERAL OPTIONS ######
-  
-  
-  # increase maximum upload size of allocated memory 
-  options(shiny.maxRequestSize = 500*1024^2)
-  
+
+
+  # GENERAL OPTIONS ######
+
+
+  # increase maximum upload size
+  options(shiny.maxRequestSize = 500 * 1024^2)
+
   # shut down R session when browser window is closed
   session$onSessionEnded(function() {
     stopApp()
   })
-  
+
   # Prefer regular to scientific number connotaion, except for very large numbers
   options(scipen = 5)
-  
-  options(htmlwidgets.TOJSON_ARGS = list(na = 'string'))
-  
-  options(warn=1)
-  
-#>>> TRACE TAB <<<######
+
+  # Debugging
+  # options(warn = 3)
+
+  # >>> TRACE TAB <<<######
 
   # | TRACE FILE PROPERTIES ------------------------------
-          
+
+  # get input files
+  # create reactive value for input files
+  tracefile <- reactiveValues()
+
+  # if input files are uploaded, use file paths and names from these
+  observeEvent(input$tracefile, {
+    tracefile$datapath <- input$tracefile$datapath
+    tracefile$name <- input$tracefile$name
+  })
+
+  # if 'example 1' button is pressed, load example 1 from example folder
+  observeEvent(input$exampletrace1, {
+    tracefile$datapath <- list.files("example/", "\\.trace\\>", full.names = TRUE)
+    tracefile$name <- list.files("example/", "\\.trace\\>", full.names = FALSE)
+  })
+
+  # if 'example 2' button is pressed, load example 1 from example folder
+  observeEvent(input$exampletrace2, {
+    tracefile$datapath <- list.files("example/", "\\.p\\>", full.names = TRUE)
+    tracefile$name <- list.files("example/", "\\.p\\>", full.names = FALSE)
+  })
+
+  # if 'info' button is pressed, show popup that explains examples
+  observeEvent(input$exampletraceinf, {
+    showModal(modalDialog(
+      title = "postpb comes with two sets of example data:",
+      includeMarkdown("example/examples.md"),
+      size = "m"
+    ))
+  })
+
   # get number of generations from tracefiles
-  ngen  <- reactive({
-    
+  ngen <- reactive({
+    req(tracefile$datapath)
     # read all tracefiles
-    tracefilelist <- lapply(input$tracefile$datapath, read.table, sep = "\t", 
-                                header = TRUE, 
-                                check.names = FALSE,
-                                comment.char = "[")
-    
+    tracefilelist <- lapply(tracefile$datapath, read.table,
+      sep = "\t",
+      header = TRUE,
+      check.names = FALSE,
+      comment.char = "["
+    )
+
     # determine shortest trace file
     ngen <- min(unlist(lapply(tracefilelist, nrow)))
 
     ngen
   })
-  
+
   # Get names of chains from file names provided
   chainnames <- reactive({
     # get names of chains from trace file names
-    strsplit(input$tracefile$name[1:length(input$tracefile$name)], ".trace", fixed = TRUE)
+    strsplit(tracefile$name[1:length(tracefile$name)], "\\.trace\\>|\\.p\\>")
   })
-  
+
   # Reading the trace files
   tracedata <- reactive({
-    req(input$tracefile)
+    req(tracefile$datapath)
     req(input$prop)
     req(input$burnin)
-    
-    # read number of burnin 
+
+    # read number of burnin
     burnin <- input$burnin
-    
+
     # read in trace files (at least 1)
     tracefilelist <- list()
-    
+
     # loop through uploaded files and read in tables
-    for(i in 1:length(input$tracefile$datapath)){
-      trace <- read.table(input$tracefile$datapath[i], 
-                 sep = "\t", 
-                 header = TRUE, 
-                 check.names = FALSE,
-                 comment.char = "[")
-      
+    for (i in 1:length(tracefile$datapath)) {
+      trace <- read.table(tracefile$datapath[i],
+        sep = "\t",
+        header = TRUE,
+        check.names = FALSE,
+        comment.char = "["
+      )
+
       # rename all first columns as 'iter'
       colnames(trace)[1] <- "iter"
-      
-      # remove burnin
-      trace <- trace[burnin+1:nrow(trace), ]
-      
+
       # apply thinning
-      trace <- trace[seq(from = 0, to = nrow(trace), by= input$prop),]
-      
+      trace <- trace[seq(from = 0, to = nrow(trace), by = input$prop), ]
+
+      # remove burnin
+      trace <- trace[burnin + 1:nrow(trace), ]
+
       # add chain name as parameter
       trace$trace <- chainnames()[[i]][1]
-      
+
       # remove meaningless variables (in terms of analysis here)
       trace <- select(trace, -matches("time|topo"))
-      
+
       # add to list
       tracefilelist[[i]] <- trace
     }
-    
+
     # combine all into 1 dataframe
     plotDF <- do.call("rbind", tracefilelist)
     plotDF <- gather(plotDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
-    
+
     plotDF
-    
   })
-  
+
   # filter tracedata to only plot selected trace files in checkbox (default= select all)
   traceDF <- reactive({
-    req(input$tracefile)
+    req(tracefile$datapath)
 
-    if(length(input$tracefile$datapath)==1){
-       traceDF <- tracedata()
+    if (length(tracefile$datapath) == 1) {
+      traceDF <- tracedata()
     }
 
-    if(length(input$tracefile$datapath)>1){
+    if (length(tracefile$datapath) > 1) {
       traceDF <- filter(tracedata(), trace %in% input$whichchain)
     }
 
@@ -111,50 +143,56 @@ server <- function(input, output, session) {
     traceDF
   })
 
-  
+
   #| UI ELEMENTS FOR TRACE TAB SIDEBAR ------------------------------
-  
+
+
   # display burnin slider using the number of generations read from trace file
   output$burnin <- renderUI({
-    req(input$tracefile)
-    sliderInput("burnin", "Burnin [# of iterations]:", 
-                min = 0, 
-                max = ngen(),  
-                value = ngen()/5, # default = 20% of iterations
-                step = 100)
+    req(tracefile)
+    sliderInput("burnin", "Burnin [# of iterations]:",
+      min = 0,
+      max = trunc(ngen() / input$prop),
+      value = trunc(ngen() / input$prop / 5), # default = 20% of iterations
+      step = 100 / input$prop
+    )
   })
-  
+
   # display checkbox to select which trace file to plot
   output$whichchain <- renderUI({
-    req(input$tracefile$datapath[2])
+    req(tracefile$datapath[2])
     names <- lapply(chainnames(), `[[`, 1)
-    prettyCheckboxGroup(inputId = "whichchain", 
-                        label = "Select trace file[s] to plot", 
-                        choices = names, 
-                        selected = names, 
-                        inline = FALSE, 
-                        status = "primary",
-                        icon = icon("check"))
+    prettyCheckboxGroup(
+      inputId = "whichchain",
+      label = "Select trace file[s] to plot",
+      choices = names,
+      selected = names,
+      inline = FALSE,
+      status = "primary",
+      icon = icon("check")
+    )
   })
-  
+
   # Button that toggles explanations for the statistics
   observeEvent(input$explanation, {
-    toggle('stats')
-  })   
-  
-  # Create pdf download handle for plots
-  output$downloadPDF <- downloadHandler(filename = "traceplots.pdf",
-                                        content = function(file) {
-                                          pdf(file,  height=input$height/72, width=input$width/72)
-                                          grid.arrange(tP(), ncol=1)
-                                          grid.arrange(vP(), ncol=1)
-                                          grid.arrange(dP(), ncol=1)
-                                          dev.off()
-                                        })
+    toggle("stats")
+  })
 
-  
+  # Create pdf download handle for plots
+  output$downloadPDF <- downloadHandler(
+    filename = "traceplots.pdf",
+    content = function(file) {
+      pdf(file, height = input$height / 72, width = input$width / 72)
+      grid.arrange(tP(), ncol = 1)
+      grid.arrange(vP(), ncol = 1)
+      grid.arrange(dP(), ncol = 1)
+      dev.off()
+    }
+  )
+
+
   #| CREATE PLOTS ------------------------------
-  
+
   # create color vector for consistent color schemes across all plots
   tracecolors <- reactive({
     traces <- unique(tracedata()$trace)
@@ -163,199 +201,203 @@ server <- function(input, output, session) {
     names(colorvector) <- traces
     colorvector
   })
-  
+
   #| #  Tab 1 (Trace) -----
-  
-  # Slider that determines the tree generation currently displyed
-  output$treegens <- renderUI({
-    req(input$treefile)
-    sliderInput("generation", "Tree generation", 
-                min = 1, 
-                max = ngentree(), 
-                value = 1, 
-                step = 1,
-                ticks = FALSE,
-                animate = animationOptions(interval = 1000,  # this adds a button that animates an iteration through all tree generations
-                                           loop = TRUE, 
-                                           # this make the buttons pretty
-                                           playButton = tags$button("PLAY", style='border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold'),
-                                           pauseButton = tags$button("PAUSE", style='border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold')))
-  })
-  
+
   # XY plot for traces
   tP <- reactive({
-    tP1 <- ggplot(traceDF(), aes(y = value, x = iter, fill = trace))+
-      facet_wrap(~variable, scales = "free", ncol = 2)+
-      theme_light()+
-      theme(axis.title = element_blank(),
-            legend.title = element_blank(),
-            legend.spacing.x = unit(0.2, "cm"),
-            axis.text = element_text(size = 11*scalefactor()*0.8),
-            legend.text = element_text(size = 12*scalefactor()*1.1),
-            legend.key = element_rect(size = 12*scalefactor()*0.8),
-            strip.text = element_text(size = 12*scalefactor()))+
+    tP1 <- ggplot(traceDF(), aes(y = value, x = iter, fill = trace)) +
+      facet_wrap(~variable, scales = "free", ncol = 2) +
+      theme_light() +
+      theme(
+        axis.title = element_blank(),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.2, "cm"),
+        axis.text = element_text(size = 11 * scalefactor() * 0.8),
+        legend.text = element_text(size = 12 * scalefactor() * 1.1),
+        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
+        strip.text = element_text(size = 12 * scalefactor())
+      ) +
       scale_color_manual(values = tracecolors())
-    
+
     # This adds points to XY plos only if this option was chosen in checkbox
-    if("points" %in% input$traceplotstyle){
-      tP1<- tP1 + geom_point(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex)
+    if ("points" %in% input$traceplotstyle) {
+      tP1 <- tP1 + geom_point(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex)
     }
-    
+
     # This adds lines to XY plos only if this option was chosen in checkbox
-    if("lines" %in% input$traceplotstyle){
-      tP1<- tP1 + geom_line(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex/2)
+    if ("lines" %in% input$traceplotstyle) {
+      tP1 <- tP1 + geom_line(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex / 2)
     }
-    
+
     tP1
   })
-  
+
   #| # Tab 2 (Violin) -----
   # Violin plot for traces
   vP <- reactive({
-    vP1 <- ggplot(traceDF(), aes(y = value, x = trace, fill = trace))+
-      facet_wrap(~variable, scales = "free", ncol = 2)+
-      theme_light()+
-      theme(axis.title = element_blank(),
-            axis.text.x = element_blank(),
-            legend.title = element_blank(),
-            legend.spacing.x = unit(0.2, "cm"),
-            axis.text = element_text(size = 11*scalefactor()*0.8),
-            legend.text = element_text(size = 12*scalefactor()*1.1),
-            legend.key = element_rect(size = 12*scalefactor()*0.8),
-            strip.text = element_text(size = 12*scalefactor()))+
-      scale_fill_manual(values = tracecolors())+
+    vP1 <- ggplot(traceDF(), aes(y = value, x = trace, fill = trace)) +
+      facet_wrap(~variable, scales = "free", ncol = 2) +
+      theme_light() +
+      theme(
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.2, "cm"),
+        axis.text = element_text(size = 11 * scalefactor() * 0.8),
+        legend.text = element_text(size = 12 * scalefactor() * 1.1),
+        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
+        strip.text = element_text(size = 12 * scalefactor())
+      ) +
+      scale_fill_manual(values = tracecolors()) +
       guides(scale_color_manual())
-    
+
     # Users can add Boxplots and/or datapoints to violin plot
     # Datapoints must always be first layer, so each combination of Violin/Boxplot/points is iterated below
-    
+
     # No points, no boxplots
-    if(!"boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle){
-      vP1 <- vP1 + 
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA) 
+    if (!"boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
+      vP1 <- vP1 +
+        geom_violin(trim = TRUE, alpha = 0.5, color = NA)
     }
-    
+
     # With points, no boxplots
-    if(!"boxplot" %in% input$violinplotstyle & "points" %in% input$violinplotstyle){
-      vP1 <- vP1 + 
-        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color="gray", show.legend=FALSE)+
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA) 
+    if (!"boxplot" %in% input$violinplotstyle & "points" %in% input$violinplotstyle) {
+      vP1 <- vP1 +
+        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
+        geom_violin(trim = TRUE, alpha = 0.5, color = NA)
     }
-    
+
     # No points, with boxplots
-    if("boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle){
-      vP1 <- vP1 + 
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA) + 
-        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex/2)
+    if ("boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
+      vP1 <- vP1 +
+        geom_violin(trim = TRUE, alpha = 0.5, color = NA) +
+        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
     }
-    
+
     # With points and boxplots
-    if("points" %in% input$violinplotstyle & "boxplot" %in% input$violinplotstyle){
-      vP1 <- vP1 + 
-        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE)+
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA)+
-        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex/2)
+    if ("points" %in% input$violinplotstyle & "boxplot" %in% input$violinplotstyle) {
+      vP1 <- vP1 +
+        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
+        geom_violin(trim = TRUE, alpha = 0.5, color = NA) +
+        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
     }
-    
+
     vP1
   })
-  
+
   #| # Tab 3 (Density) -----
   # density plot for traces
   dP <- reactive({
-    ggplot(traceDF())+
-      geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0)+
-      facet_wrap(~variable, scales = "free", ncol = 2)+
-      theme_light()+
-      theme(axis.title = element_blank(),
-            axis.text.y = element_blank(),
-            legend.title = element_blank(),
-            legend.spacing.x = unit(0.2, "cm"),
-            axis.text = element_text(size=11*scalefactor()*0.8),
-            legend.text = element_text(size=12*scalefactor()*1.1),
-            legend.key = element_rect(size=12*scalefactor()*0.8),
-            strip.text = element_text(size=12*scalefactor()))+
+    ggplot(traceDF()) +
+      geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0) +
+      facet_wrap(~variable, scales = "free", ncol = 2) +
+      theme_light() +
+      theme(
+        axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.2, "cm"),
+        axis.text = element_text(size = 11 * scalefactor() * 0.8),
+        legend.text = element_text(size = 12 * scalefactor() * 1.1),
+        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
+        strip.text = element_text(size = 12 * scalefactor())
+      ) +
       scale_fill_manual(values = tracecolors())
   })
-  
-  
+
+
   #| DISPLAY PLOTS ------------------------------
-  
+
   # get height & width of plot area from slider inputs
   plotheight <- reactive({
     input$height
   })
-  
+
   plotwidth <- reactive({
     input$width
   })
-  
+
   # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
-  scalefactor <- reactive({(
-    input$height+input$width)/2000
+  scalefactor <- reactive({
+    (
+      input$height + input$width) / 2000
   })
-  
+
   # render all 3 plots
   output$tracePlot <- renderPlot({
     tP()
   })
-  
+
   output$tracePlot.ui <- renderUI({
-    withSpinner(plotOutput("tracePlot", 
-                           height = plotheight(), 
-                           width = plotwidth()), 
-                color = "#2C4152", size = 0.5)
+    withSpinner(plotOutput("tracePlot",
+      height = plotheight(),
+      width = plotwidth()
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
-  
+
   output$violinPlot <- renderPlot({
     vP()
   })
-  
+
   output$violinPlot.ui <- renderUI({
-    withSpinner(plotOutput("violinPlot", 
-                           height = plotheight(), 
-                           width = plotwidth()), 
-                color = "#2C4152", size = 0.5)
+    withSpinner(plotOutput("violinPlot",
+      height = plotheight(),
+      width = plotwidth()
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
-  
+
   output$densePlot <- renderPlot({
     dP()
   })
-  
+
   output$densePlot.ui <- renderUI({
-    withSpinner(plotOutput("densePlot", 
-                           height = plotheight(), 
-                           width = plotwidth()), 
-                color = "#2C4152", size = 0.5)
+    withSpinner(plotOutput("densePlot",
+      height = plotheight(),
+      width = plotwidth()
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
-  
-  
+
+
   #| SUMMARY STATISTICS (Tab 4) ------------------------------
- 
+
   # Use DT package for flexible table formatting
   output$table <- DT::renderDataTable({
-    req(input$tracefile)
+    req(tracefile)
 
     # spread the trace file
     traceDF <- spread(traceDF(), variable, value)
     tracenames <- unique(traceDF$trace)
-    
+
     # calculate means, sds, and ess for all numeric columns
     Mean <- summarise_if(traceDF, is.numeric, mean)
     SD <- summarise_if(traceDF, is.numeric, sd)
-
     # same for ess (here, calculate ESS for each trace separately and then add values)
     ess <- group_by(traceDF, trace) %>% summarize_if(is.numeric, effectiveSize) %>% select(-trace) %>% summarise_all(sum)
-
+    
+    # calculate 95% HPD intervals
+    hpd <- HPDinterval(mcmc(select(traceDF, -trace)), prob = 0.95)
+    hpd <- as.data.frame(hpd)
+    hpd <- hpd %>%
+      mutate(lower=round(lower, 2)) %>%
+      mutate(upper=round(upper, 2))
+    names(hpd) <- c("95% HPD lower", "95% HPD upper")
+    
     # calculate geweke
     geweke_res <- list()
     chainlengths <- vector()
-    for(i in 1:length(tracenames)){
-      traceDF1 <- traceDF %>% filter(trace==tracenames[i]) %>% select(-trace)
+    for (i in 1:length(tracenames)) {
+      traceDF1 <- traceDF %>% filter(trace == tracenames[i]) %>% select(-trace)
       chainlengths[i] <- nrow(traceDF1)
-      geweke <- geweke.diag(as.mcmc(traceDF1))[[1]] # first item in geweke.diag result are the actual values 
+      geweke <- geweke.diag(as.mcmc(traceDF1))[[1]] # first item in geweke.diag result are the actual values
       geweke <- data.frame(abs(geweke))
-      names(geweke) <- paste("Geweke", tracenames[i], sep=" ")
+      names(geweke) <- paste("Geweke", tracenames[i], sep = " ")
       geweke_res[[i]] <- geweke
     }
 
@@ -365,12 +407,14 @@ server <- function(input, output, session) {
     # merge means, sd, ess, and geweke into results dataframe
     results <- data.frame(t(rbind(Mean, SD, ess)))
     names(results) <- c("Mean", "SD", "ESS")
+    results <- cbind(results, hpd)
+    results <- select(results, -SD, -ESS, SD, ESS)
     results <- cbind(results, geweke_all)
 
     # remove 'iter' & 'time' variables
-    results <- results[2:nrow(results),]
+    results <- results[2:nrow(results), ]
 
-    if(length(tracenames)>1){
+    if (length(tracenames) > 1) {
 
       # calculate discrepancy according to phylobayes manual
       # first, get means and sd for each variable and each chain sepately
@@ -378,26 +422,26 @@ server <- function(input, output, session) {
       sds <- group_by(traceDF, trace) %>% summarize_if(is.numeric, sd) %>% select(-trace)
 
       # then calculate Discrepancy for 2 chains
-      if(length(tracenames)==2){
-        Discrepancy <- 2*abs(means[1,] - means[2,]) / (sds[1,] + sds[2,])
+      if (length(tracenames) == 2) {
+        Discrepancy <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
       }
 
       # for 3 & 4 chains, calculate discrepancy between any 2 chains, use average of these values
-      if(length(tracenames)==3){
-        Discrepancy <- 2*abs(means[1,] - means[2,]) / (sds[1,] + sds[2,])
-        Discrepancy[2,] <- 2*abs(means[1,] - means[2,]) / (sds[1,] + sds[2,])
-        Discrepancy[3,] <- 2*abs(means[2,] - means[3,]) / (sds[2,] + sds[3,])
+      if (length(tracenames) == 3) {
+        Discrepancy <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
+        Discrepancy[2, ] <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
+        Discrepancy[3, ] <- 2 * abs(means[2, ] - means[3, ]) / (sds[2, ] + sds[3, ])
         Discrepancy <- summarize_all(Discrepancy, mean)
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
       }
-      if(length(tracenames)==4){
-        Discrepancy <- 2*abs(means[1,] - means[2,]) / (sds[1,] + sds[2,])
-        Discrepancy[2,] <- 2*abs(means[1,] - means[3,]) / (sds[1,] + sds[3,])
-        Discrepancy[3,] <- 2*abs(means[1,] - means[4,]) / (sds[1,] + sds[4,])
-        Discrepancy[4,] <- 2*abs(means[2,] - means[3,]) / (sds[2,] + sds[3,])
-        Discrepancy[5,] <- 2*abs(means[2,] - means[4,]) / (sds[2,] + sds[4,])
-        Discrepancy[6,] <- 2*abs(means[3,] - means[4,]) / (sds[3,] + sds[4,])
+      if (length(tracenames) == 4) {
+        Discrepancy <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
+        Discrepancy[2, ] <- 2 * abs(means[1, ] - means[3, ]) / (sds[1, ] + sds[3, ])
+        Discrepancy[3, ] <- 2 * abs(means[1, ] - means[4, ]) / (sds[1, ] + sds[4, ])
+        Discrepancy[4, ] <- 2 * abs(means[2, ] - means[3, ]) / (sds[2, ] + sds[3, ])
+        Discrepancy[5, ] <- 2 * abs(means[2, ] - means[4, ]) / (sds[2, ] + sds[4, ])
+        Discrepancy[6, ] <- 2 * abs(means[3, ] - means[4, ]) / (sds[3, ] + sds[4, ])
         Discrepancy <- summarize_all(Discrepancy, mean)
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
       }
@@ -408,15 +452,15 @@ server <- function(input, output, session) {
 
       # create list of mcmc objects, 1 for each trace file
       tracelist <- list()
-      for(j in 1:length(tracenames)){
-        tracex <- traceDF %>% filter(trace==tracenames[j]) %>% select(-trace)
-        tracelist[[j]] <- mcmc(tracex[1:min_chainlength,2:ncol(tracex)])
+      for (j in 1:length(tracenames)) {
+        tracex <- traceDF %>% filter(trace == tracenames[j]) %>% select(-trace)
+        tracelist[[j]] <- mcmc(tracex[1:min_chainlength, 2:ncol(tracex)])
       }
 
       # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe
       gel.res <- gelman.diag(tracelist, autoburnin = F, multivariate = FALSE)
-      gel.point <- data.frame(gel.res$psrf[,1])
-      gel.ci <- data.frame(gel.res$psrf[,2])
+      gel.point <- data.frame(gel.res$psrf[, 1])
+      gel.ci <- data.frame(gel.res$psrf[, 2])
       names(gel.point) <- "GR point estimate"
       names(gel.ci) <- "GR 95% CI"
       gel.point <- tibble::rownames_to_column(gel.point)
@@ -425,7 +469,7 @@ server <- function(input, output, session) {
       results <- full_join(results, gel.point, by = "rowname")
       results <- full_join(results, gel.ci, by = "rowname")
       row.names(results) <- results$rowname
-      results <- results[,2:ncol(results)]
+      results <- results[, 2:ncol(results)]
     }
 
     # for the numeric values in dataframe, round using 2 decimals
@@ -434,887 +478,1017 @@ server <- function(input, output, session) {
 
     # call dataframe with DT::datatable to enable nice formatting
     sumres <- datatable(results,
-                        selection = 'none',
-                        extensions = 'Buttons',
-                        options = list(
-                          searching = FALSE,
-                          ordering = FALSE,
-                          #autoWidth = TRUE,
-                          orientation ='landscape',
-                          #colReorder = TRUE,
-                          pageLength = nrow(results),
-                          dom = 'Bt',
-                          buttons = c('copy', 'csv', 'pdf', 'print')
-                        )) %>%
-      formatStyle("ESS", color = styleInterval(99.99, c('red', 'black'))) %>%
-      formatStyle(names(results)[grep("Geweke", names(results))], color = styleInterval(2, c('black', 'red'))) %>%
-      formatStyle(0, fontWeight = 'bold')
-    
-    if(length(tracenames)>1){   
+      selection = "none",
+      extensions = "Buttons",
+      options = list(
+        searching = FALSE,
+        ordering = FALSE,
+        # autoWidth = TRUE,
+        orientation = "landscape",
+        # colReorder = TRUE,
+        pageLength = nrow(results),
+        dom = "Bt",
+        buttons = c("copy", "csv", "print")
+      )
+    ) %>%
+      formatStyle("ESS", color = styleInterval(99.99, c("red", "black"))) %>%
+      formatStyle(names(results)[grep("Geweke", names(results))], color = styleInterval(2, c("black", "red"))) %>%
+      formatStyle(0, fontWeight = "bold")
+
+    if (length(tracenames) > 1) {
       sumres <- sumres %>%
-        formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c('black', 'red'))) %>%
-        formatStyle("Discrepancy", color = styleInterval(0.3, c('black', 'red')))
+        formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c("black", "red"))) %>%
+        formatStyle("Discrepancy", color = styleInterval(0.3, c("black", "red")))
     }
-    
+
     sumres
   })
-  
-  
 
-  #>>> TREE TAB <<<#####
-  
-  
+
+
+  # >>> TREE TAB <<<#####
+
+
   #| TREE FILE PROPERTIES #------------------------------
+
+  treefile <- reactiveValues()
+
+  example <- reactiveValues()
+
+  # if input files are uploaded, use file paths and names from these
+  observeEvent(input$treefile, {
+    treefile$datapath <- input$treefile$datapath
+    treefile$name <- input$treefile$name
+    example$click <- FALSE
+  })
+
+  # if 'example' button is pressed, load example from example folder
+  observeEvent(input$exampletree1, {
+    treefile$datapath <- list.files("example/", "\\.treelist\\>", full.names = TRUE)
+    treefile$name <- list.files("example/", "\\.treelist\\>", full.names = FALSE)
+    example$click <- TRUE
+  })
+
+  observeEvent(input$exampletree2, {
+    treefile$datapath <- list.files("example/", "\\.t\\>", full.names = TRUE)
+    treefile$name <- list.files("example/", "\\.t\\>", full.names = FALSE)
+    example$click <- FALSE
+  })
+
+  # if 'info' button is pressed, show popup that explains examples
+  observeEvent(input$exampletreeinf, {
+    showModal(modalDialog(
+      title = "postpb comes with two sets of example data:",
+      includeMarkdown("example/examples.md"),
+      size = "m"
+    ))
+  })
+
 
   # read in tree files
   completetrees <- reactive({
-    req(input$treefile)
-    
+    req(treefile$datapath)
+
     # only update tree format when new files are uploaded
     input$treefile
     isolate(treeformat <- input$treefiletype)
-    
+
+    if (example$click == TRUE) {
+      treeformat <- "Newick (e.g., Phylobayes)"
+    }
+
+    if (example$click == FALSE) {
+      treeformat <- "Nexus (e.g., MrBayes)"
+    }
+
     treelist <- list()
-    
-    for(i in 1:length(input$treefile$datapath)){
-      treepath <- input$treefile$datapath[i]
-      
-      if(treeformat == "Newick (e.g., Phylobayes)"){
-        firstline <- readLines(treepath, n=1)
+
+    for (i in 1:length(treefile$datapath)) {
+      treepath <- treefile$datapath[i]
+
+      if (treeformat == "Newick (e.g., Phylobayes)") {
+        firstline <- readLines(treepath, n = 1)
         validate(
+          # add very simple check to make sure file IS NOT nexus format
           need(!is.element("#Nexus", firstline), "Error reading file(s). Please check format."),
           need(!is.element("#NEXUS", firstline), "Error reading file(s). Please check format.")
         )
-         treelist[[i]] <- ape::read.tree(treepath)
+        treelist[[i]] <- ape::read.tree(treepath)
       }
-      
-      if(treeformat == "Nexus (e.g., MrBayes)"){
-        
+
+      if (treeformat == "Nexus (e.g., MrBayes)") {
+
         # add very simple check to make sure file IS nexus format
-        firstline <- readLines(treepath, n=1)
+        firstline <- readLines(treepath, n = 1)
         validate(
-          need(any(firstline == c("#Nexus", "#NEXUS")), "Error reading file(s). Please check format.")
+          need(any(firstline == c("#Nexus", "#NEXUS", "#nexus")), "Error reading file(s). Please check format.")
         )
         treelist[[i]] <- ape::read.nexus(treepath)
       }
-      
-      treelist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by= input$treethin)]
-      
+
+      treelist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by = input$treethin)]
     }
     treelist
-    
   })
-  
+
   alltrees <- reactive({
     req(completetrees())
-    if(length(completetrees()) == 1){
+    if (length(completetrees()) == 1) {
       alltrees <- completetrees()
     }
-    
-    if(length(completetrees()) > 1 & !is.null(input$whichtree)){
+
+    if (length(completetrees()) > 1 & !is.null(input$whichtree)) {
       alltrees <- completetrees()[which(treenames() %in% input$whichtree)]
     }
-    
-     if(is.null(input$whichtree) & length(completetrees()) > 1){
-       alltrees <- completetrees()
-    #   showNotification("At least one tree file must be selected!", type = "warning")
-     }
-    
-  alltrees
-  })
-  
-  observeEvent(input$whichtree, {
-    if(length(completetrees()) > 1 & is.null(input$whichtree)){
-      showNotification("At least one tree file must be selected!", type = "warning")
+
+    if (is.null(input$whichtree) & length(completetrees()) > 1) {
+      alltrees <- completetrees()
     }
+
+    alltrees
   })
-  
+
+
   # After treefiles have been read in, reset tree format radio buttons
   observeEvent(alltrees(), {
-    updatePrettyRadioButtons(session, "treefiletype", 
-                             choices = c("Newick (e.g., Phylobayes)", "Nexus (e.g., MrBayes)"), 
-                             selected = "character(0)",
-                             inline = TRUE,
-                             prettyOptions = list(shape = "round",
-                                                  status = "primary"))
+    updatePrettyRadioButtons(session, "treefiletype",
+      choices = c("Newick (e.g., Phylobayes)", "Nexus (e.g., MrBayes)"),
+      selected = "character(0)",
+      inline = TRUE,
+      prettyOptions = list(
+        shape = "round",
+        status = "primary"
+      )
+    )
   })
-  
-  # determine number of tree generations (smallest number from all files) 
+
+  # determine number of tree generations (smallest number from all files)
   ngentree <- reactive({
     treegen <- min(unlist(lapply(alltrees(), length)))
     treegen
   })
-  
-  # extract the tree tip labels (= taxon names) 
+
+  # extract the tree tip labels (= taxon names)
   tipnames <- reactive({
-    req(input$treefile)
+    req(treefile$datapath)
     tree1 <- alltrees()[[1]][[1]]
     labels <- sort(tree1$tip.label)
-    
+
     # pickerInput requires list
     as.list(labels)
   })
-  
+
   # get the names of the chains from the tree file names
   treenames <- reactive({
-    req(input$treefile)
-    strsplit(input$treefile$name[1:length(input$treefile$name)], ".treelist", fixed = TRUE)
+    req(treefile$datapath)
+    strsplit(treefile$name[1:length(treefile$name)], "\\.treelist\\>|\\.t\\>")
   })
-  
+
 
   #| UI ELEMENTS FOR TREE TAB SIDEBAR #------------------------------
-  
+
   # display checkbox to select which trace file to plot
   output$whichtree <- renderUI({
-    req(input$treefile$datapath[2])
+    req(treefile$datapath[2])
     treenames <- lapply(treenames(), `[[`, 1)
-    prettyCheckboxGroup(inputId = "whichtree", 
-                        label = "Select tree file[s] to analyse", 
-                        choices = treenames, 
-                        selected = treenames, 
-                        inline = FALSE, 
-                        status = "primary",
-                        icon = icon("check"))
+    prettyCheckboxGroup(
+      inputId = "whichtree",
+      label = "Select tree file[s] to analyse",
+      choices = treenames,
+      selected = treenames,
+      inline = FALSE,
+      status = "primary",
+      icon = icon("check")
+    )
   })
-  
+
   # Slider that determines the number of burnin generations
   output$conburnin <- renderUI({
-    req(input$treefile)
-    sliderInput("conburnin", "Burnin [# of iterations]:", 
-                min = 0, 
-                max = ngentree(),  
-                step = 100, 
-                value = ngentree()/5) # default burnin = 20% of all trees
+    req(treefile$datapath)
+    sliderInput("conburnin", "Burnin [# of iterations]:",
+      min = 0,
+      max = ngentree(),
+      step = 100,
+      value = trunc(ngentree() / 5)
+    ) # default burnin = 20% of all trees
   })
-  
+
   # Picker input to chose outgroup
   output$outgroups <- renderUI({
-    req(input$treefile)
-    pickerInput("outgroup", 
-                label = "Select outgroup(s) for rooting",
-                choices=c(tipnames()), 
-                multiple=TRUE, 
-                options = list(`selected-text-format` = "count > 2",        # show names of up to 2 outgroup taxa
-                               `count-selected-text` = "{0} outgroup taxa", # show number of outgroups if more than 2 taxa are selected
-                               `live-search` = TRUE),                       # this enables a search box in the selector
-                inline = FALSE)
+    req(treefile$datapath)
+    pickerInput("outgroup",
+      label = "Select outgroup(s) for rooting",
+      choices = c(tipnames()),
+      multiple = TRUE,
+      options = list(
+        `selected-text-format` = "count > 2", # show names of up to 2 outgroup taxa
+        `count-selected-text` = "{0} outgroup taxa", # show number of outgroups if more than 2 taxa are selected
+        `live-search` = TRUE
+      ), # this enables a search box in the selector
+      inline = FALSE
+    )
   })
-  
+
   # Similar picker input to chose which taxa to highlight
   output$highlight <- renderUI({
-    req(input$treefile)
-    pickerInput("highlight", 
-                label = HTML("Select taxa to highlight <font color=\"#377eb8\">[blue]</font>"),
-                choices=tipnames(), 
-                multiple=TRUE, 
-                options = list(`selected-text-format` = "count > 2",
-                               `count-selected-text` = "{0} taxa",
-                               `actions-box` = TRUE,     # enables 'select-all' and 'select none' buttons
-                               `live-search` = TRUE),  
-                inline = FALSE)
+    req(treefile$datapath)
+    pickerInput("highlight",
+      label = HTML("Select taxa to highlight <font color=\"#377eb8\">[blue]</font>"),
+      choices = tipnames(),
+      multiple = TRUE,
+      options = list(
+        `selected-text-format` = "count > 2",
+        `count-selected-text` = "{0} taxa",
+        `actions-box` = TRUE, # enables 'select-all' and 'select none' buttons
+        `live-search` = TRUE
+      ),
+      inline = FALSE
+    )
   })
-  
+
   # And another picker for another highlight
   output$highlight2 <- renderUI({
-    req(input$treefile)
-    pickerInput("highlight2", 
-                label = HTML("Select taxa to highlight <font color=\"#ff7f00\">[orange]</font>"),
-                choices=tipnames(), 
-                multiple=TRUE, 
-                options = list(`selected-text-format` = "count > 2",
-                               `count-selected-text` = "{0} taxa",
-                               `actions-box` = TRUE,
-                               `live-search` = TRUE), 
-                inline = FALSE)
+    req(treefile$datapath)
+    pickerInput("highlight2",
+      label = HTML("Select taxa to highlight <font color=\"#ff7f00\">[orange]</font>"),
+      choices = tipnames(),
+      multiple = TRUE,
+      options = list(
+        `selected-text-format` = "count > 2",
+        `count-selected-text` = "{0} taxa",
+        `actions-box` = TRUE,
+        `live-search` = TRUE
+      ),
+      inline = FALSE
+    )
   })
-  
+
   # PDF download handle for tree plots
-  output$downloadtreePDF <- downloadHandler(filename = "treeplots.pdf",
-                                            contentType = "application/pdf",
-                                            content = function(file1) {
-                                              file.copy(".treeplot.pdf", file1)
-                                            })
-  
-  
+  output$downloadtreePDF <- downloadHandler(
+    filename = "treeplots.pdf",
+    contentType = "application/pdf",
+    content = function(file1) {
+      file.copy(".treeplot.pdf", file1)
+    }
+  )
+
+  # get further tree options from UI
+  treeopts <- reactive({
+    treeopts <- vector()
+    if ("align" %in% input$treeopts) {
+      treeopts[1] <- TRUE
+    }
+    if ("ignore" %in% input$treeopts) {
+      treeopts[2] <- FALSE
+    }
+    if (!("ignore" %in% input$treeopts)) {
+      treeopts[2] <- TRUE
+    }
+    if (!("align" %in% input$treeopts)) {
+      treeopts[1] <- FALSE
+    }
+    treeopts
+  })
+
   #| FURTHER TREE DISPLAY OPTIONS #------------------------------
-  
+
   # Reset outgroup only when button is presed, default is no outgroup
   og <- reactiveValues(outgroup = "<None>")
-  
+
   # observe midpoint button
   observeEvent(input$midpoint, {
     og$outgroup <- "<Midpoint>"
   })
-  
+
   # observe unroot button
   observeEvent(input$unroot, {
     og$outgroup <- "<None>"
   })
-  
+
   # observe reroot button
   observeEvent(input$outgroup, {
     og$outgroup <- input$outgroup
   })
-  
+
   # this gets height and width for plots from the slider inputs and creates a scale factor to be used in plots
   treeheight <- reactive({
     input$treeheight
   })
-  
+
   treewidth <- reactive({
     input$treewidth
   })
-  
-  treescalefactor <- reactive({(
-    input$treeheight+input$treewidth)/1800
+
+  treescalefactor <- reactive({
+    (
+      input$treeheight + input$treewidth) / 1800
   })
-  
-  
+
+
   #| TREE PLOTS ------------------------------
-  
+
   #| # Tab 1 (Trees) ----- 
+
+  # Slider that determines the tree generation currently displyed
+  output$treegens <- renderUI({
+    req(treefile$datapath)
+    sliderInput("generation", "Tree generation",
+      min = 1,
+      max = ngentree(),
+      value = 1,
+      step = 1,
+      ticks = FALSE,
+      animate = animationOptions(
+        interval = 1000, # this adds a button that animates an iteration through all tree generations
+        loop = TRUE,
+        # this make the buttons pretty
+        playButton = tags$button("PLAY", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold"),
+        pauseButton = tags$button("PAUSE", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold")
+      )
+    )
+  })
+
   # plot 1 is for single tree plots per generation
   output$treeplot <- renderPlot({
-    
-    if(length(completetrees())>1){
+    if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-    
+
     # require these for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
-    
+
     # get outgroup from ui, but isolate so that rerooting is only done when button is pressed
     isolate(outgroup <- og$outgroup)
-    
+
     # change plot layout to 2 columns if 2 treefiles are present
-    if(length(alltrees())==2){
-      par(mfrow=c(1,2))
+    if (length(alltrees()) == 2) {
+      par(mfrow = c(1, 2))
     }
-    
+
     # 3 columns if 3 treefiles are present
-    if(length(alltrees())==3){
-      par(mfrow=c(1,3))
+    if (length(alltrees()) == 3) {
+      par(mfrow = c(1, 3))
     }
-    
+
     # and 2x2 for 4 treefiles
-    if(length(alltrees())==4){
-      par(mfrow=c(2,2))
+    if (length(alltrees()) == 4) {
+      par(mfrow = c(2, 2))
     }
-    
+
     # plot all trees in loop
-    for(i in 1:length(alltrees())){
-      
+    for (i in 1:length(alltrees())) {
+
       # get trees
       trees <- alltrees()[[i]]
-      
+
       # unroot tree if no root was chosen
-      if("<None>" %in% outgroup){
+      if ("<None>" %in% outgroup) {
         currtree <- unroot(trees[[input$generation]])
       }
-      
+
       # midpoint root if chosen
-      if("<Midpoint>" %in% outgroup){
+      if ("<Midpoint>" %in% outgroup) {
         currtree <- midpoint.root(trees[[input$generation]])
       }
-      
+
       # root with outgroup if chosen
-      if( !("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)){
+      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
         validate(
           need(is.monophyletic(trees[[input$generation]], outgroup), "The specified outgroup is not monophyletic!")
         )
-        currtree <- root(trees[[input$generation]], 
-                         outgroup = outgroup, 
-                         resolve.root = TRUE)
+        currtree <- root(trees[[input$generation]],
+          outgroup = outgroup,
+          resolve.root = TRUE
+        )
       }
-      
+
       # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
       concolors1 <- currtree$tip.label %in% input$highlight
       concolors2 <- currtree$tip.label %in% input$highlight2
-      concolvec <- rep("black", length=length(currtree$tip.label))
-      concolvec[which(concolors1==TRUE)] <- "#377eb8"
-      concolvec[which(concolors2==TRUE)] <- "#ff7f00"
-      concolvec[which(concolors1==TRUE & concolors2==TRUE)] <- "#4daf4a"
-      
+      concolvec <- rep("black", length = length(currtree$tip.label))
+      concolvec[which(concolors1 == TRUE)] <- "#377eb8"
+      concolvec[which(concolors2 == TRUE)] <- "#ff7f00"
+      concolvec[which(concolors1 == TRUE & concolors2 == TRUE)] <- "#4daf4a"
+
       # Plot
-      plot(ladderize(currtree), 
-           main = paste(input$whichtree[i], "iteration", input$generation), 
-           cex = input$treecex, 
-           cex.main = input$treecex*1.1,
-           edge.width = input$treecex, 
-           label.offset = 0.01, 
-           font = as.numeric(input$treefont),
-           tip.color = concolvec)
+      plot(ladderize(currtree),
+        main = paste(input$whichtree[i], "iteration", input$generation),
+        cex = input$treecex,
+        cex.main = input$treecex * 1.1,
+        edge.width = input$treecex,
+        align.tip.label = treeopts()[1],
+        use.edge.length = treeopts()[2],
+        label.offset = 0.01,
+        font = as.numeric(input$treefont),
+        tip.color = concolvec
+      )
       add.scale.bar(lwd = input$treecex)
-      
     }
-    
+
     # Copy plot to device
-    dev.copy2pdf(file = ".treeplot.pdf", 
-                 height=treeheight()/72, 
-                 width=treewidth()/72)
-    
+    dev.copy2pdf(
+      file = ".treeplot.pdf",
+      height = treeheight() / 72,
+      width = treewidth() / 72
+    )
   })
-  
-  
+
+
   # render the plot with spinner & using the height and widths from ui
   output$treePlot.ui <- renderUI({
-    req(input$treefile)
-    withSpinner(plotOutput("treeplot", 
-                           height = treeheight(), 
-                           width = treewidth()), 
-                color = "#2C4152", 
-                size = 0.5)
+    req(treefile$datapath)
+    withSpinner(plotOutput("treeplot",
+      height = treeheight(),
+      width = treewidth()
+    ),
+    color = "#2C4152",
+    size = 0.5
+    )
   })
-  
+
   #| # Tab 2 (Consensus) ----- 
-  # Plot 2 is a consensus plot 
-  
+  # Plot 2 is a consensus plot
+
   # first calculate the tree
   contree <- reactive({
-    
-    req(input$treefile)
-    if(length(completetrees())>1){
+    req(treefile$datapath)
+    if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-    
+
     # require these for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
     isolate(outgroup <- og$outgroup)
-    
-    
+
+
     treesall <- list()
-    for(i in 1:length(alltrees())){
+    class(treesall) <- "multiPhylo"
+    for (i in 1:length(alltrees())) {
       # get trees
       trees <- alltrees()[[i]]
-      trees <- trees[(input$conburnin+1):length(trees)]
-      treesall <- c(treesall, trees)
+      trees <- trees[(input$conburnin + 1):length(trees)]
+      if (length(treesall) >= 1) {
+        treesall <- c(treesall, trees)
+      }
+      if (length(treesall) == 0) {
+        treesall <- trees
+      }
     }
-    
-    
-    # get consensus branch lengths 
-    contree <- consensus.edges(treesall, method="least.squares")
-    
+
+
+    # get consensus branch lengths
+    contree <- consensus.edges(treesall, method = "least.squares")
+
     # and count how often the nodes are present in all trees (=pp) and writes this as nodelabels to the tree
+    prop.clades
     sv <- prop.clades(contree, treesall)
-    contree$node.label <- sv/length(treesall)
+    contree$node.label <- sv / length(treesall)
     contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
-    
+
     # do the rooting
     # unroot
-    if("<None>" %in% outgroup){
+    if ("<None>" %in% outgroup) {
       contree <- unroot(contree)
     }
-    
+
     # midpoint root
-    if("<Midpoint>" %in% outgroup){
+    if ("<Midpoint>" %in% outgroup) {
       contree <- midpoint.root(contree)
     }
-    
+
     # root with outgroup
-    if( !("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)){
+    if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
       validate(
         need(is.monophyletic(contree, outgroup), "The specified outgroup is not monophyletic!")
       )
-      contree<- root(contree, 
-                      outgroup = outgroup, 
-                      resolve.root = TRUE)
+      contree <- root(contree,
+        outgroup = outgroup,
+        resolve.root = TRUE
+      )
     }
-    
+
     # adjust node labels: 1) remove "root" label
-    contree$node.label[contree$node.label=="Root"] <- ""
-    
-    # convert to numeric 
+    contree$node.label[contree$node.label == "Root"] <- ""
+
+    # convert to numeric
     contree$node.label <- as.numeric(contree$node.label)
-    
+
     # Collapse nodes below a posterior probability (inspired by http://evoslav.blogspot.com/2015/01/how-to-collapse-unsupported-branches-of.html)
     # get position of nodes
     collapse_nodes <- which(contree$node.label < input$postprop) + length(contree$tip.label)
-    
+
     # get index of edges from these nodes
-    collapse_indexes <- which(contree$edge[,2] %in% collapse_nodes)
-    
+    collapse_indexes <- which(contree$edge[, 2] %in% collapse_nodes)
+
     # assign 0 branch length
-    contree$edge.length[collapse_indexes] <- 0 
-    
+    contree$edge.length[collapse_indexes] <- 0
+
     # use di2multi to collpase 0 branch lengths
     # important: use tiny number for tol in order for short branches with high pp not to be collapsed
-    contree <- di2multi(contree, tol = 1e-10000) 
-    
+    contree <- di2multi(contree, tol = 1e-10000)
+
     # remove node labels that correspond to collapsed branches
-    contree$node.label[contree$node.label<input$postprop] <- ""
-    
+    contree$node.label[contree$node.label < input$postprop] <- ""
+
     # call tree
     contree <- ladderize(contree)
-    
+
     contree
   })
-  
+
   # now render consensus plot
   output$consensusPlot <- renderPlot({
     # colorvector again
-    concolors1 <- contree()$tip.label %in% input$highlight 
+    concolors1 <- contree()$tip.label %in% input$highlight
     concolors2 <- contree()$tip.label %in% input$highlight2
-    concolvec <- rep("black", length=length(contree()$tip.label))
-    concolvec[which(concolors1==TRUE)] <- "#377eb8"
-    concolvec[which(concolors2==TRUE)] <- "#ff7f00"
-    concolvec[which(concolors1==TRUE & concolors2==TRUE)] <- "#4daf4a"
-    
+    concolvec <- rep("black", length = length(contree()$tip.label))
+    concolvec[which(concolors1 == TRUE)] <- "#377eb8"
+    concolvec[which(concolors2 == TRUE)] <- "#ff7f00"
+    concolvec[which(concolors1 == TRUE & concolors2 == TRUE)] <- "#4daf4a"
+
     treetot <- sum(unlist(lapply(alltrees(), length)))
-    
+
     # plot
-    plot(contree(), 
-         main = paste("Consensus from", treetot, "trees,", "burnin =",input$conburnin, "per chain"),  # this adds the burnin to tree title
-         cex.main = input$treecex*1.1,
-         cex = input$treecex, 
-         edge.width = input$treecex,
-         label.offset = 0.01, 
-         font = as.numeric(input$treefont),
-         tip.color = concolvec)
-    nodelabels(text = contree()$node.label,  # some formatting for the pp values
-               frame = "none", 
-               adj = 0, 
-               cex = input$treecex*0.8)
-    add.scale.bar(lwd = input$treecex)  
-    
-    
-    
+    plot(contree(),
+      main = paste("Consensus from", treetot, "trees,", "burnin =", input$conburnin, "per chain"), # this adds the burnin to tree title
+      cex.main = input$treecex * 1.1,
+      cex = input$treecex,
+      align.tip.label = treeopts()[1],
+      use.edge.length = treeopts()[2],
+      edge.width = input$treecex,
+      label.offset = 0.01,
+      font = as.numeric(input$treefont),
+      tip.color = concolvec
+    )
+    nodelabels(
+      text = contree()$node.label, # some formatting for the pp values
+      frame = "none",
+      adj = 0,
+      cex = input$treecex * 0.8
+    )
+    add.scale.bar(lwd = input$treecex)
+
+
+
     # Copy plot to device
-    dev.copy2pdf(file = ".treeplot.pdf", 
-                 height=treeheight()/72, 
-                 width=treewidth()/72)
-    
+    dev.copy2pdf(
+      file = ".treeplot.pdf",
+      height = treeheight() / 72,
+      width = treewidth() / 72
+    )
   })
-  
+
   # render plot 2 with spinner
   output$consensusPlot.ui <- renderUI({
-    withSpinner(plotOutput("consensusPlot", 
-                           height=treeheight(), 
-                           brush = brushOpts(id="plot_brush", # this enables selecting 
-                                             resetOnNew = TRUE,
-                                             delay = 2000,
-                                             delayType = "debounce"),
-                           width=treewidth()*0.75), 
-                color="#2C4152", 
-                size=0.5)
-  }) 
-  
+    withSpinner(plotOutput("consensusPlot",
+      height = treeheight(),
+      brush = brushOpts(
+        id = "plot_brush", # this enables selecting
+        resetOnNew = TRUE,
+        delay = 2000,
+        delayType = "debounce"
+      ),
+      width = treewidth() * 0.75
+    ),
+    color = "#2C4152",
+    size = 0.5
+    )
+  })
 
-  
+
+
   # also export the tree as newick if wanted
   output$newick <- downloadHandler(
     filename = "consensus.tre",
     content = function(file4) {
-      write.tree(contree(), file = file4, append = FALSE,
-                 digits = 10, tree.names = FALSE)
+      write.tree(contree(),
+        file = file4, append = FALSE,
+        digits = 10, tree.names = FALSE
+      )
     }
   )
-  
+
   # (experimental) enable interactive selection of taxon selection for rooting
   # first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
-  # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted 
+  # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
   tipDF <- reactive({
     req(input$plot_brush)
     # which edges belong to tips?
-    is_tip <- contree()$edge[,2] <= length(contree()$tip.label)
+    is_tip <- contree()$edge[, 2] <= length(contree()$tip.label)
     # order according
     ordered_tips <- contree()$edge[is_tip, 2]
-    
+
     # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
     tips <- as.data.frame(contree()$tip.label[ordered_tips])
     tiporder <- as.data.frame(1:length(contree()$tip.label))
     tipDF <- as.data.frame(cbind(tips, tiporder))
-    names(tipDF) <-  c("tips", "tiporder")
-    
+    names(tipDF) <- c("tips", "tiporder")
+
     # call dataframe
     tipDF
   })
-  
+
   # get the names of selected tips from the interactive 'brush' click+drag
   # important here are only the ymin & ymax values: ape plots each tree from 0 (bottom) to Ntaxa, and difference between taxa is always 1
   conroot <- reactive({
     req(input$plot_brush)
-    
+
     # get names
-    tipDF <- tipDF() %>% 
-      filter(tiporder >= input$plot_brush$ymin) %>% 
+    tipDF <- tipDF() %>%
+      filter(tiporder >= input$plot_brush$ymin) %>%
       filter(tiporder <= input$plot_brush$ymax)
-    
+
     as.character(tipDF$tips)
   })
-  
+
   # With the tipnames, update selection in outgroup pickerInput
   observeEvent(conroot(), {
     updatePickerInput(session, "outgroup",
-                      label = "Select outgroup(s) for rooting",
-                      choices=c(tipnames()),
-                      selected = conroot())
+      label = "Select outgroup(s) for rooting",
+      choices = c(tipnames()),
+      selected = conroot()
+    )
     session$resetBrush("plot_brush")
   })
-  
-  
+
+
   #| # Tab 3 (Difference) ----- 
-  # Plot 3 shows 2 consensus plots with comparison 
-  
+  # Plot 3 shows 2 consensus plots with comparison
+
   output$differencePlot <- renderPlot({
-    
+
     # required for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
     isolate(outgroup <- og$outgroup)
-    
+
     # check if at least 2 tree files are present and if rooting other than midpoint is selected. Throw error if not.
     validate(
       need(length(input$whichtree) > 1, "Provide tree files from at least 2 chains to display differences between consensus trees."),
       need(!("<Midpoint>" %in% outgroup), "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
     )
-    
-    
+
+
     # loop through all trees and create tree list as well as color list
     contrees <- list()
     colvecs <- list()
-    
-    for(i in 1:length(alltrees())){
+
+    for (i in 1:length(alltrees())) {
       tree <- alltrees()[[i]]
-      tree <- tree[(input$conburnin+1):length(tree)]
+      tree <- tree[(input$conburnin + 1):length(tree)]
       contree <- consensus(tree, p = 0.5)
-      
+
       # reroot outgroup
-      if( !("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)){
-        contree <- root(contree, outgroup=outgroup)
+      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
+        contree <- root(contree, outgroup = outgroup)
       }
-      
-      # unroot tree  
-      if("<None>" %in% outgroup){
+
+      # unroot tree
+      if ("<None>" %in% outgroup) {
         contree <- unroot(contree)
       }
-      
+
       contrees[[i]] <- contree
-      
+
       # colorvector
-      colors1 <- contree$tip.label %in% input$highlight 
+      colors1 <- contree$tip.label %in% input$highlight
       colors2 <- contree$tip.label %in% input$highlight2
-      colvec <- rep("black", length=length(contree$tip.label))
-      colvec[which(colors1==TRUE)] <- "#377eb8"
-      colvec[which(colors2==TRUE)] <- "#ff7f00"
-      colvec[which(colors1==TRUE & colors2==TRUE)] <- "#4daf4a"
-      
-      colvecs[[i]] <- colvec 
+      colvec <- rep("black", length = length(contree$tip.label))
+      colvec[which(colors1 == TRUE)] <- "#377eb8"
+      colvec[which(colors2 == TRUE)] <- "#ff7f00"
+      colvec[which(colors1 == TRUE & colors2 == TRUE)] <- "#4daf4a"
+
+      colvecs[[i]] <- colvec
     }
 
-    # function that plots 2 trees next to each other and hifhlights differences 
+    # function that plots 2 trees next to each other and hifhlights differences
     # modified from http://blog.phytools.org/
-    phylo.diff.new <-function (x, y, main1, main2, coltip1, coltip2, ...){
+    phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
       uniqT1 <- distinct.edges(x, y)
       uniqT2 <- distinct.edges(y, x)
       treeA.cs <- rep("black", dim(x$edge)[1])
-      treeA.cs[uniqT1] = "#FF1493"
+      treeA.cs[uniqT1] <- "#FF1493"
       treeA.lw <- rep(input$treecex, dim(x$edge)[1])
-      treeA.lw[uniqT1] = input$treecex*2
+      treeA.lw[uniqT1] <- input$treecex * 2
       treeB.cs <- rep("black", dim(y$edge)[1])
-      treeB.cs[uniqT2] = "#FF1493"
+      treeB.cs[uniqT2] <- "#FF1493"
       treeB.lw <- rep(input$treecex, dim(x$edge)[1])
-      treeB.lw[uniqT2] = input$treecex*2
-      #par(mfrow = c(1, 2))
-      plot(x, edge.color = treeA.cs, main = main1, tip.color = coltip1, edge.width = treeA.lw, align.tip.label= TRUE, ...)
-      plot(y, edge.color = treeB.cs, main = main2, tip.color = coltip2, edge.width = treeB.lw, align.tip.label= TRUE, direction = "leftwards", ...)
+      treeB.lw[uniqT2] <- input$treecex * 2
+      # par(mfrow = c(1, 2))
+      plot(x, edge.color = treeA.cs, main = main1, tip.color = coltip1, edge.width = treeA.lw, align.tip.label = TRUE, ...)
+      plot(y, edge.color = treeB.cs, main = main2, tip.color = coltip2, edge.width = treeB.lw, align.tip.label = TRUE, direction = "leftwards", ...)
       invisible()
     }
-    
+
     # change plot layout according to number of chains analysed
-    if(length(alltrees())==2){
-      par(mfrow=c(1,2))
+    if (length(alltrees()) == 2) {
+      par(mfrow = c(1, 2))
     }
-    if(length(alltrees())==3){
-      par(mfrow=c(3,2))
+    if (length(alltrees()) == 3) {
+      par(mfrow = c(3, 2))
     }
-    if(length(alltrees())==4){
-      par(mfrow=c(3,4))
+    if (length(alltrees()) == 4) {
+      par(mfrow = c(3, 4))
     }
-    
+
     # this nested loop plots consensus trees side by side, for all combinations in 2, 3, or 4 trees
-    for(i in 1:length(alltrees())){
-      for(j in i:length(alltrees())){
-        if(i!=j){
-          phylo.diff.new(contrees[[i]], contrees[[j]], 
-                         cex = input$treecex, 
-                         cex.main = input$treecex*1.1,
-                         label.offset = 0.01, 
-                         font = as.numeric(input$treefont),
-                         main1 = input$whichtree[i], 
-                         main2 = input$whichtree[j], 
-                         coltip1 = colvecs[[i]], 
-                         coltip2 = colvecs[[j]])
+    for (i in 1:length(alltrees())) {
+      for (j in i:length(alltrees())) {
+        if (i != j) {
+          phylo.diff.new(contrees[[i]], contrees[[j]],
+            cex = input$treecex,
+            cex.main = input$treecex * 1.1,
+            label.offset = 0.01,
+            font = as.numeric(input$treefont),
+            main1 = input$whichtree[i],
+            main2 = input$whichtree[j],
+            coltip1 = colvecs[[i]],
+            coltip2 = colvecs[[j]]
+          )
         }
       }
     }
-    
+
     # Copy plot to device
-    dev.copy2pdf(file = ".treeplot.pdf", 
-                 height=treeheight()/72, 
-                 width=treewidth()/72)
+    dev.copy2pdf(
+      file = ".treeplot.pdf",
+      height = treeheight() / 72,
+      width = treewidth() / 72
+    )
   })
-  
+
   # finally, render this plot with spinner
   output$differencePlot.ui <- renderUI({
-    req(input$treefile[[2]])
-    withSpinner(plotOutput("differencePlot", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
-  })   
-  
-  
+    withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
+  })
+
+
   #| # Tab 4 (Pairwise Robinson-Foulds) ----- 
-  # Plot 4 shows differences between trees across iterations and between chains 
-  
+  # Plot 4 shows differences between trees across iterations and between chains
+
   rP <- reactive({
-    
-    req(input$treefile)
-    if(length(completetrees())>1){
+    req(treefile$datapath)
+    if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-    
-    rflist <- list()
-    for(i in 1:length(alltrees())){
-      tree <- alltrees()[[i]]
-      tree <- tree[(input$conburnin+1):length(tree)]
-      rf <- vector(mode = "numeric")
-      for(j in 2:length(tree)){
-        rf[j-1] <- dist.topo(tree[j-1], tree[j])  
-      }
-      x <- (2+input$conburnin):(length(tree)+input$conburnin)
 
-      RFdf<- as.data.frame(cbind(x, rf))
+    rflist <- list()
+    for (i in 1:length(alltrees())) {
+      tree <- alltrees()[[i]]
+      tree <- tree[(input$conburnin + 1):length(tree)]
+      rf <- vector(mode = "numeric")
+      for (j in 2:length(tree)) {
+        rf[j - 1] <- dist.topo(tree[j - 1], tree[j])
+      }
+      x <- (2 + input$conburnin):(length(tree) + input$conburnin)
+
+      RFdf <- as.data.frame(cbind(x, rf))
       RFdf$chain <- paste("Iteration n vs. Iteration (n-1),", input$whichtree[i])
       rflist[[i]] <- RFdf
     }
-    
+
     RFdf <- do.call("rbind", rflist)
     RFdf$difference <- "Tree distance within chain"
-    
+
     # results vector
     rf <- vector(mode = "numeric")
-    
-    if(length(alltrees()) > 1){
-      
+
+    if (length(alltrees()) > 1) {
       rflist3 <- list()
       counter <- 0
-      
-      for(h in 1:length(alltrees())){
+
+      for (h in 1:length(alltrees())) {
         tree1 <- alltrees()[[h]]
-        tree1 <- tree1[(input$conburnin+1):length(tree1)]
-        for(j in h:length(alltrees())){
-          if(h!=j){
+        tree1 <- tree1[(input$conburnin + 1):length(tree1)]
+        for (j in h:length(alltrees())) {
+          if (h != j) {
             counter <- counter + 1
             tree2 <- alltrees()[[j]]
-            tree2 <- tree2[(input$conburnin+1):length(tree2)]
+            tree2 <- tree2[(input$conburnin + 1):length(tree2)]
             minlength <- min(c(length(tree1), length(tree2)))
-            
-            for(k in 1:minlength){
+
+            for (k in 1:minlength) {
               rf[k] <- dist.topo(tree1[[k]], tree2[[k]])
             }
-            
-            x <- (1+input$conburnin):(length(rf)+input$conburnin)
 
-            RFdf3<- as.data.frame(cbind(x, rf))
+            x <- (1 + input$conburnin):(length(rf) + input$conburnin)
+
+            RFdf3 <- as.data.frame(cbind(x, rf))
             RFdf3$chain <- paste(input$whichtree[h], input$whichtree[j], sep = " vs. ")
             rflist3[[counter]] <- RFdf3
           }
         }
       }
-      
+
       RFdf3 <- do.call("rbind", rflist3)
-      
+
       RFdf3$difference <- "Tree distance between chains"
-      
+
       RFdf <- rbind(RFdf, RFdf3)
     }
-    
-    RFggplot <- ggplot(data=RFdf, aes(x=x, y=rf, color=chain)) +
-      geom_line(size = input$treecex/2)+
+
+    RFggplot <- ggplot(data = RFdf, aes(x = x, y = rf, color = chain)) +
+      geom_line(size = input$treecex / 2) +
       theme_light() +
-      facet_wrap(~difference, nrow = 2, scales = "free_y")+
+      facet_wrap(~difference, nrow = 2, scales = "free_y") +
       xlab("Tree generation") +
-      ylab("Robinson-Foulds distance")+
-      theme(axis.title = element_text(size = 12*treescalefactor()),
-            legend.title = element_blank(),
-            legend.spacing.x = unit(0.2, "cm"),
-            axis.text = element_text(size = 11*treescalefactor()),
-            legend.position = "bottom",
-            legend.direction = "vertical",
-            legend.text = element_text(size = 12*treescalefactor()),
-            strip.text = element_text(size = 14*treescalefactor(), face = "bold"))+
+      ylab("Robinson-Foulds distance") +
+      theme(
+        axis.title = element_text(size = 12 * treescalefactor()),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.2, "cm"),
+        axis.text = element_text(size = 11 * treescalefactor()),
+        legend.position = "bottom",
+        legend.direction = "vertical",
+        legend.text = element_text(size = 12 * treescalefactor()),
+        strip.text = element_text(size = 14 * treescalefactor(), face = "bold")
+      ) +
       scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"))
-    
-    
+
+
     # call plot
-    RFggplot 
+    RFggplot
   })
-  
+
   # render plot
   output$rfPlot <- renderPlot({
     rP()
   })
-  
+
   output$rfPlot.ui <- renderUI({
-    req(input$treefile[[1]])
-    withSpinner(plotOutput("rfPlot", height=treeheight(), width=treewidth()), color="#2C4152", size=0.5)
-  }) 
-  
+    req(treefile$datapath)
+    withSpinner(plotOutput("rfPlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
+  })
+
   # create download button for plot
-  output$downloadrfplot <- downloadHandler(filename = "RFplot.pdf",
-                                           content = function(file3) {
-                                             pdf(file3,  height=input$height/144, width=input$width/72)
-                                             grid.arrange(rP(), ncol=1)
-                                             dev.off()
-                                           })
-  
-  
-  #| # Tab 5 (Biopartition support) -----
-  # Tab 5 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group. 
-  
+  output$downloadrfplot <- downloadHandler(
+    filename = "RFplot.pdf",
+    content = function(file3) {
+      pdf(file3, height = input$height / 144, width = input$width / 72)
+      grid.arrange(rP(), ncol = 1)
+      dev.off()
+    }
+  )
+
+
+  #| # Tab 5 (Bipartition support) -----
+  # Tab 5 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group.
+
   # Picker input to chose which taxa to check (similar to highlight color choser)
   output$bpselect <- renderUI({
-    req(input$treefile)
-    pickerInput("bpselect", 
-                label = ("Select taxa"),
-                choices=tipnames(), 
-                multiple=TRUE, 
-                options = list(`selected-text-format` = "count > 2",
-                               `count-selected-text` = "{0} taxa",
-                               `actions-box` = TRUE,     
-                               `live-search` = TRUE,
-                               `width` = TRUE),  
-                inline = FALSE,
-                width = "400px")
+    req(treefile$datapath)
+    pickerInput("bpselect",
+      label = ("Select taxa"),
+      choices = tipnames(),
+      multiple = TRUE,
+      options = list(
+        `selected-text-format` = "count > 2",
+        `count-selected-text` = "{0} taxa",
+        `actions-box` = TRUE,
+        `live-search` = TRUE,
+        `width` = TRUE
+      ),
+      inline = FALSE,
+      width = "400px"
+    )
   })
-  
-  
-  # Selection of taxa 
+
+
+  # Selection of taxa
   selectedtax <- reactive({
-    
-    # Use taxa from inputpicker if nothing is entered into the text field 
-    if(length(input$bpselect) > 0 & input$bptext == ""){
+    req(treefile$datapath)
+
+    # Use taxa from inputpicker if nothing is entered into the text field
+    if (length(input$bpselect) > 0 & input$bptext == "") {
       selectedtax <- input$bpselect
     }
-    
+
     # Use taxa from text field and overwrite any potantially selected taxa in the picker
-    if(input$bptext != ""){  
+    if (input$bptext != "") {
       selectedtax <- as.character(str_split(input$bptext, "\n", simplify = TRUE))
-      selectedtax <- unique(selectedtax[selectedtax!=""]) # remove empty lines and multiply selected taxa
+      selectedtax <- unique(selectedtax[selectedtax != ""]) # remove empty lines and multiply selected taxa
     }
-    
+
     selectedtax
   })
-  
-  
+
+
   # Count support for selected bipartitions
-  bpsupport <-reactive({
-    
-    req(input$treefile)
-    if(length(completetrees())>1){
+  bpsupport <- reactive({
+    req(treefile$datapath)
+    if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-    
+
     # read in trees in loop
     treesall <- list()
-    for(i in 1:length(alltrees())){
+    for (i in 1:length(alltrees())) {
       # get trees
       trees <- alltrees()[[i]]
-      trees <- trees[(input$conburnin+1):length(trees)]
+      trees <- trees[(input$conburnin + 1):length(trees)]
       treesall <- c(treesall, trees)
     }
-    
+
     # check if taxa from the list are monophyletic (for whole list of trees)
     bpcount <- lapply(treesall, is.monophyletic, tips = selectedtax())
-    
+
     # count number of "TRUE"
     monotrue <- sum(unlist(bpcount))
-    
+
     # summarize results in list
-    bpsupport <- list(absolute = monotrue, # in how many trees is the group monophyletic
-                      relative = formatC(monotrue/length(treesall)*100, digits = 2, format = "f"), # in percen
-                      total = length(unlist(bpcount))) # how many trees were analysed
+    bpsupport <- list(
+      absolute = monotrue, # in how many trees is the group monophyletic
+      relative = formatC(monotrue / length(treesall) * 100, digits = 2, format = "f"), # in percent
+      total = length(unlist(bpcount)) # how many trees were analysed
+    )
 
     bpsupport
   })
-  
-  output$bipart <- renderText({
-    req(input$treefile, selectedtax())
 
+  output$bipart <- renderText({
+    req(treefile$datapath)
+    req(selectedtax())
     validate(
       need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu.")
     )
-    
+    if (is.character(selectedtax())) {
+      validate(
+        need(selectedtax() %in% tipnames(), "Taxon name(s) not in tree file. Please check.")
+      )
+    }
+
     # Print result as HTML formatted text
-    paste0("The ", "<b>", as.character(length(selectedtax())), "</b>",
-           " selected taxa are monophyletic in ",
-           "<b>", as.character(bpsupport()["absolute"]), "</b>",
-           " out of ", 
-           "<b>", as.character(bpsupport()["total"]), "</b>",
-           " trees (",  
-           "<b>", as.character(bpsupport()["relative"]), "</b>",
-           "%).")
-                
-          
-    
+    paste0(
+      "The ", "<b>", as.character(length(selectedtax())), "</b>",
+      " selected taxa are monophyletic in ",
+      "<b>", as.character(bpsupport()["absolute"]), "</b>",
+      " out of ",
+      "<b>", as.character(bpsupport()["total"]), "</b>",
+      " trees (",
+      "<b>", as.character(bpsupport()["relative"]), "</b>",
+      "%)."
+    )
   })
 
   # also plot the tested groups as monophyletic. This is just for visual confirmation that the right taxa were selected.
   output$bipartPlot <- renderPlot({
-    req(input$treefile, selectedtax())
-    
+    req(treefile$datapath, selectedtax())
+
     # only print tree for at least 2 taxa
     validate(
-      need(length(selectedtax()) > 1, message = FALSE)
+      need(length(selectedtax()) > 1, message = FALSE),
+      need(selectedtax() %in% tipnames(), message = FALSE)
     )
-    
+
     # get all tipnams, the ones that were selected and extract the non selected ones
     alltips <- tipnames()
     selecttips <- selectedtax()
     inverttips <- alltips[!alltips %in% selecttips]
-    
+
     # this adds parentheses and commas to all selected and non-selected tip names s
-    str1 <- paste("(", selecttips, "),", sep="", collapse ="")
-    str1 <- substr(str1, 1, nchar(str1)-1)
-    str2 <- paste("(", inverttips, "),", sep="", collapse ="")
-    str2 <- substr(str2, 1, nchar(str2)-1)
-    
+    str1 <- paste("(", selecttips, "),", sep = "", collapse = "")
+    str1 <- substr(str1, 1, nchar(str1) - 1)
+    str2 <- paste("(", inverttips, "),", sep = "", collapse = "")
+    str2 <- substr(str2, 1, nchar(str2) - 1)
+
     # to create newick tree, add paretheses around each monophyletic group and final semicolon
     bipartition <- paste0("(", str2, "),", "(", str1, ");")
-    
+
     # read tree string
-    bipartition_plot <- read.newick(text=bipartition)
-    
+    bipartition_plot <- read.newick(text = bipartition)
+
     # make all edge lengths equal (improves display)
-    bipartition_plot$edge.length <- rep(1, length(bipartition_plot$edge/2))
-    
-    # Highlight the edges connecting selected trees in pink 
-    edge.highlight <- which.edge(bipartition_plot, selecttips) 
-    edgecolor <- rep("black", Nedge(bipartition_plot)) 
-    edgecolor[edge.highlight]<-"#FF1493"
-    
+    bipartition_plot$edge.length <- rep(1, length(bipartition_plot$edge / 2))
+
+    # Highlight the edges connecting selected trees in pink
+    edge.highlight <- which.edge(bipartition_plot, selecttips)
+    edgecolor <- rep("black", Nedge(bipartition_plot))
+    edgecolor[edge.highlight] <- "#FF1493"
+
     # Also, increase edge width
-    edgewidth <- rep(1, Nedge(bipartition_plot)) 
-    edgewidth[edge.highlight] <-2
-    
+    edgewidth <- rep(1, Nedge(bipartition_plot))
+    edgewidth[edge.highlight] <- 2
+
     # and plot
-    plot(bipartition_plot, 
-         type = "phylogram", 
-         cex = input$treecex, 
-         edge.color = edgecolor, 
-         edge.width = edgewidth*input$treecex)
+    plot(bipartition_plot,
+      type = "phylogram",
+      cex = input$treecex,
+      edge.color = edgecolor,
+      edge.width = edgewidth * input$treecex
+    )
   })
-  
+
   # render
   output$bipartPlot.ui <- renderUI({
-    req(input$treefile, selectedtax())
+    req(treefile$datapath, selectedtax())
     validate(
       need(length(selectedtax()) > 1, message = FALSE)
     )
-    plotOutput("bipartPlot", height=treeheight(), width=treewidth())
-  })   
-  
-  } 
+    plotOutput("bipartPlot", height = treeheight(), width = treewidth())
+  })
+}
