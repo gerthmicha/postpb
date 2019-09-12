@@ -57,7 +57,7 @@ server <- function(input, output, session) {
   ngen <- reactive({
     req(tracefile$datapath)
     # read all tracefiles
-    tracefilelist <- lapply(tracefile$datapath, read.table,
+    tracefilelist <- mclapply(tracefile$datapath, read.table,
       sep = "\t",
       header = TRUE,
       check.names = FALSE,
@@ -82,21 +82,14 @@ server <- function(input, output, session) {
     req(input$prop)
     req(input$burnin)
 
-    # read number of burnin
-    burnin <- input$burnin
+    tracefilelist <- mclapply(tracefile$datapath, read.table,
+      sep = "\t",
+      header = TRUE,
+      check.names = FALSE,
+      comment.char = "["
+    )
 
-    # read in trace files (at least 1)
-    tracefilelist <- list()
-
-    # loop through uploaded files and read in tables
-    for (i in 1:length(tracefile$datapath)) {
-      trace <- read.table(tracefile$datapath[i],
-        sep = "\t",
-        header = TRUE,
-        check.names = FALSE,
-        comment.char = "["
-      )
-
+    prep.trace <- function(trace) {
       # rename all first columns as 'iter'
       colnames(trace)[1] <- "iter"
 
@@ -104,23 +97,23 @@ server <- function(input, output, session) {
       trace <- trace[seq(from = 0, to = nrow(trace), by = input$prop), ]
 
       # remove burnin
-      trace <- trace[burnin + 1:nrow(trace), ]
-
-      # add chain name as parameter
-      trace$trace <- chainnames()[[i]][1]
+      trace <- trace[input$burnin + 1:nrow(trace), ]
 
       # remove meaningless variables (in terms of analysis here)
       trace <- select(trace, -matches("time|topo"))
-
-      # add to list
-      tracefilelist[[i]] <- trace
     }
+
+    # add chain name as parameter
+    tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
+
+    # apply thinning and burnin
+    tracefilelist <- lapply(tracefilelist, prep.trace)
 
     # combine all into 1 dataframe
     plotDF <- do.call("rbind", tracefilelist)
     plotDF <- gather(plotDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
 
-    plotDF
+    return(plotDF)
   })
 
   # filter tracedata to only plot selected trace files in checkbox (default= select all)
@@ -193,6 +186,22 @@ server <- function(input, output, session) {
 
   #| CREATE PLOTS ------------------------------
 
+  # Set theme for all trace plots
+  tracetheme <- reactive({
+    req(scalefactor())
+    theme_light() +
+      theme(
+        axis.title = element_blank(),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.2, "cm"),
+        axis.text = element_text(size = 11 * scalefactor() * 0.8),
+        legend.text = element_text(size = 12 * scalefactor() * 1.1),
+        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
+        strip.text = element_text(size = 12 * scalefactor())
+      )
+  })
+
+
   # create color vector for consistent color schemes across all plots
   tracecolors <- reactive({
     traces <- unique(tracedata()$trace)
@@ -208,16 +217,6 @@ server <- function(input, output, session) {
   tP <- reactive({
     tP1 <- ggplot(traceDF(), aes(y = value, x = iter, fill = trace)) +
       facet_wrap(~variable, scales = "free", ncol = 2) +
-      theme_light() +
-      theme(
-        axis.title = element_blank(),
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.2, "cm"),
-        axis.text = element_text(size = 11 * scalefactor() * 0.8),
-        legend.text = element_text(size = 12 * scalefactor() * 1.1),
-        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
-        strip.text = element_text(size = 12 * scalefactor())
-      ) +
       scale_color_manual(values = tracecolors())
 
     # This adds points to XY plos only if this option was chosen in checkbox
@@ -230,7 +229,7 @@ server <- function(input, output, session) {
       tP1 <- tP1 + geom_line(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex / 2)
     }
 
-    tP1
+    tP1 + tracetheme()
   })
 
   #| # Tab 2 (Violin) -----
@@ -238,17 +237,6 @@ server <- function(input, output, session) {
   vP <- reactive({
     vP1 <- ggplot(traceDF(), aes(y = value, x = trace, fill = trace)) +
       facet_wrap(~variable, scales = "free", ncol = 2) +
-      theme_light() +
-      theme(
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.2, "cm"),
-        axis.text = element_text(size = 11 * scalefactor() * 0.8),
-        legend.text = element_text(size = 12 * scalefactor() * 1.1),
-        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
-        strip.text = element_text(size = 12 * scalefactor())
-      ) +
       scale_fill_manual(values = tracecolors()) +
       guides(scale_color_manual())
 
@@ -283,7 +271,7 @@ server <- function(input, output, session) {
         geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
     }
 
-    vP1
+    vP1 + tracetheme() + theme(axis.text.x = element_blank())
   })
 
   #| # Tab 3 (Density) -----
@@ -292,18 +280,8 @@ server <- function(input, output, session) {
     ggplot(traceDF()) +
       geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0) +
       facet_wrap(~variable, scales = "free", ncol = 2) +
-      theme_light() +
-      theme(
-        axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.2, "cm"),
-        axis.text = element_text(size = 11 * scalefactor() * 0.8),
-        legend.text = element_text(size = 12 * scalefactor() * 1.1),
-        legend.key = element_rect(size = 12 * scalefactor() * 0.8),
-        strip.text = element_text(size = 12 * scalefactor())
-      ) +
-      scale_fill_manual(values = tracecolors())
+      scale_fill_manual(values = tracecolors()) +
+      tracetheme() + theme(axis.text.y = element_blank())
   })
 
 
@@ -312,23 +290,26 @@ server <- function(input, output, session) {
   # get height & width of plot area from slider inputs
   plotheight <- reactive({
     input$height
-  })
-
+  }) 
+  
   plotwidth <- reactive({
     input$width
   })
 
+  plotcex <- reactive({
+    input$cex
+  })
+  
   # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
   scalefactor <- reactive({
-    (
-      input$height + input$width) / 2000
-  })
+    (input$height + input$width) / 2000
+  }) 
+
 
   # render all 3 plots
   output$tracePlot <- renderPlot({
     tP()
   })
-
   output$tracePlot.ui <- renderUI({
     withSpinner(plotOutput("tracePlot",
       height = plotheight(),
@@ -341,7 +322,6 @@ server <- function(input, output, session) {
   output$violinPlot <- renderPlot({
     vP()
   })
-
   output$violinPlot.ui <- renderUI({
     withSpinner(plotOutput("violinPlot",
       height = plotheight(),
@@ -350,11 +330,10 @@ server <- function(input, output, session) {
     color = "#2C4152", size = 0.5
     )
   })
-
+  
   output$densePlot <- renderPlot({
     dP()
   })
-
   output$densePlot.ui <- renderUI({
     withSpinner(plotOutput("densePlot",
       height = plotheight(),
@@ -379,21 +358,26 @@ server <- function(input, output, session) {
     Mean <- summarise_if(traceDF, is.numeric, mean)
     SD <- summarise_if(traceDF, is.numeric, sd)
     # same for ess (here, calculate ESS for each trace separately and then add values)
-    ess <- group_by(traceDF, trace) %>% summarize_if(is.numeric, effectiveSize) %>% select(-trace) %>% summarise_all(sum)
-    
+    ess <- group_by(traceDF, trace) %>%
+      summarize_if(is.numeric, effectiveSize) %>%
+      select(-trace) %>%
+      summarise_all(sum)
+
     # calculate 95% HPD intervals
     hpd <- HPDinterval(mcmc(select(traceDF, -trace)), prob = 0.95)
     hpd <- as.data.frame(hpd)
     hpd <- hpd %>%
-      mutate(lower=round(lower, 2)) %>%
-      mutate(upper=round(upper, 2))
+      mutate(lower = round(lower, 2)) %>%
+      mutate(upper = round(upper, 2))
     names(hpd) <- c("95% HPD lower", "95% HPD upper")
-    
+
     # calculate geweke
     geweke_res <- list()
     chainlengths <- vector()
     for (i in 1:length(tracenames)) {
-      traceDF1 <- traceDF %>% filter(trace == tracenames[i]) %>% select(-trace)
+      traceDF1 <- traceDF %>%
+        filter(trace == tracenames[i]) %>%
+        select(-trace)
       chainlengths[i] <- nrow(traceDF1)
       geweke <- geweke.diag(as.mcmc(traceDF1))[[1]] # first item in geweke.diag result are the actual values
       geweke <- data.frame(abs(geweke))
@@ -418,8 +402,12 @@ server <- function(input, output, session) {
 
       # calculate discrepancy according to phylobayes manual
       # first, get means and sd for each variable and each chain sepately
-      means <- group_by(traceDF, trace) %>% summarize_if(is.numeric, mean) %>% select(-trace)
-      sds <- group_by(traceDF, trace) %>% summarize_if(is.numeric, sd) %>% select(-trace)
+      means <- group_by(traceDF, trace) %>%
+        summarize_if(is.numeric, mean) %>%
+        select(-trace)
+      sds <- group_by(traceDF, trace) %>%
+        summarize_if(is.numeric, sd) %>%
+        select(-trace)
 
       # then calculate Discrepancy for 2 chains
       if (length(tracenames) == 2) {
@@ -453,12 +441,14 @@ server <- function(input, output, session) {
       # create list of mcmc objects, 1 for each trace file
       tracelist <- list()
       for (j in 1:length(tracenames)) {
-        tracex <- traceDF %>% filter(trace == tracenames[j]) %>% select(-trace)
+        tracex <- traceDF %>%
+          filter(trace == tracenames[j]) %>%
+          select(-trace)
         tracelist[[j]] <- mcmc(tracex[1:min_chainlength, 2:ncol(tracex)])
       }
 
       # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe
-      gel.res <- gelman.diag(tracelist, autoburnin = F, multivariate = FALSE)
+      gel.res <- gelman.diag(tracelist, autoburnin = FALSE, multivariate = FALSE)
       gel.point <- data.frame(gel.res$psrf[, 1])
       gel.ci <- data.frame(gel.res$psrf[, 2])
       names(gel.point) <- "GR point estimate"
@@ -483,9 +473,7 @@ server <- function(input, output, session) {
       options = list(
         searching = FALSE,
         ordering = FALSE,
-        # autoWidth = TRUE,
         orientation = "landscape",
-        # colReorder = TRUE,
         pageLength = nrow(results),
         dom = "Bt",
         buttons = c("copy", "csv", "print")
@@ -512,7 +500,6 @@ server <- function(input, output, session) {
   #| TREE FILE PROPERTIES #------------------------------
 
   treefile <- reactiveValues()
-
   example <- reactiveValues()
 
   # if input files are uploaded, use file paths and names from these
@@ -571,7 +558,8 @@ server <- function(input, output, session) {
         validate(
           # add very simple check to make sure file IS NOT nexus format
           need(!is.element("#Nexus", firstline), "Error reading file(s). Please check format."),
-          need(!is.element("#NEXUS", firstline), "Error reading file(s). Please check format.")
+          need(!is.element("#NEXUS", firstline), "Error reading file(s). Please check format."),
+          need(!is.element("#nexus", firstline), "Error reading file(s). Please check format.")
         )
         treelist[[i]] <- ape::read.tree(treepath)
       }
@@ -646,6 +634,28 @@ server <- function(input, output, session) {
 
 
   #| UI ELEMENTS FOR TREE TAB SIDEBAR #------------------------------
+
+  # Some tree calculations benefit from parallelization.
+  # Get the number of cores interactively, and set the default to ( total cores -1 )
+
+  totalcores <- reactive({
+    detectCores()[1]
+  })
+
+  observe({
+    totalcores()
+    registerDoParallel(cores = input$ncores)
+  })
+
+  output$ncores <- renderUI({
+    numericInput("ncores",
+      label = "Number of cores",
+      min = 1,
+      max = totalcores(),
+      value = totalcores() - 1
+    )
+  })
+
 
   # display checkbox to select which trace file to plot
   output$whichtree <- renderUI({
@@ -770,6 +780,31 @@ server <- function(input, output, session) {
     og$outgroup <- input$outgroup
   })
 
+
+  # tree labels
+  treefont <- reactive({
+    treefont <- vector(mode = "numeric")
+
+    if (is.null(input$treefont)) {
+      treefont <- 1
+    }
+    else {
+      if (length(input$treefont) == 1) {
+        if (input$treefont == "bold") {
+          treefont <- 2
+        }
+        if (input$treefont == "italic") {
+          treefont <- 3
+        }
+      }
+      if (length(input$treefont) == 2) {
+        treefont <- 4
+      }
+    }
+    treefont
+  })
+
+
   # this gets height and width for plots from the slider inputs and creates a scale factor to be used in plots
   treeheight <- reactive({
     input$treeheight
@@ -780,8 +815,7 @@ server <- function(input, output, session) {
   })
 
   treescalefactor <- reactive({
-    (
-      input$treeheight + input$treewidth) / 1800
+    (input$treeheight + input$treewidth) / 1800
   })
 
 
@@ -881,7 +915,7 @@ server <- function(input, output, session) {
         align.tip.label = treeopts()[1],
         use.edge.length = treeopts()[2],
         label.offset = 0.01,
-        font = as.numeric(input$treefont),
+        font = treefont(),
         tip.color = concolvec
       )
       add.scale.bar(lwd = input$treecex)
@@ -942,9 +976,9 @@ server <- function(input, output, session) {
 
     # get consensus branch lengths
     contree <- consensus.edges(treesall, method = "least.squares")
-
+    
+    
     # and count how often the nodes are present in all trees (=pp) and writes this as nodelabels to the tree
-    prop.clades
     sv <- prop.clades(contree, treesall)
     contree$node.label <- sv / length(treesall)
     contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
@@ -1021,7 +1055,7 @@ server <- function(input, output, session) {
       use.edge.length = treeopts()[2],
       edge.width = input$treecex,
       label.offset = 0.01,
-      font = as.numeric(input$treefont),
+      font = treefont(),
       tip.color = concolvec
     )
     nodelabels(
@@ -1204,7 +1238,7 @@ server <- function(input, output, session) {
             cex = input$treecex,
             cex.main = input$treecex * 1.1,
             label.offset = 0.01,
-            font = as.numeric(input$treefont),
+            font = treefont(),
             main1 = input$whichtree[i],
             main2 = input$whichtree[j],
             coltip1 = colvecs[[i]],
@@ -1231,20 +1265,25 @@ server <- function(input, output, session) {
   #| # Tab 4 (Pairwise Robinson-Foulds) ----- 
   # Plot 4 shows differences between trees across iterations and between chains
 
+  # Calculate RF distances in parallel if multiple cores are available
+
   rP <- reactive({
     req(treefile$datapath)
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
 
+    # rflist <- list()
     rflist <- list()
     for (i in 1:length(alltrees())) {
       tree <- alltrees()[[i]]
       tree <- tree[(input$conburnin + 1):length(tree)]
       rf <- vector(mode = "numeric")
-      for (j in 2:length(tree)) {
+
+      rf <- foreach(j = 2:length(tree), .packages = "ape", .combine = c) %dopar% {
         rf[j - 1] <- dist.topo(tree[j - 1], tree[j])
       }
+
       x <- (2 + input$conburnin):(length(tree) + input$conburnin)
 
       RFdf <- as.data.frame(cbind(x, rf))
@@ -1256,8 +1295,6 @@ server <- function(input, output, session) {
     RFdf$difference <- "Tree distance within chain"
 
     # results vector
-    rf <- vector(mode = "numeric")
-
     if (length(alltrees()) > 1) {
       rflist3 <- list()
       counter <- 0
@@ -1272,8 +1309,8 @@ server <- function(input, output, session) {
             tree2 <- tree2[(input$conburnin + 1):length(tree2)]
             minlength <- min(c(length(tree1), length(tree2)))
 
-            for (k in 1:minlength) {
-              rf[k] <- dist.topo(tree1[[k]], tree2[[k]])
+            rf <- foreach(k = 1:minlength, .packages = "ape", combine = c) %dopar% {
+              dist.topo(tree1[[k]], tree2[[k]])
             }
 
             x <- (1 + input$conburnin):(length(rf) + input$conburnin)
@@ -1286,7 +1323,7 @@ server <- function(input, output, session) {
       }
 
       RFdf3 <- do.call("rbind", rflist3)
-
+      RFdf3 <- as.data.frame(lapply(RFdf3, unlist))
       RFdf3$difference <- "Tree distance between chains"
 
       RFdf <- rbind(RFdf, RFdf3)
@@ -1377,6 +1414,7 @@ server <- function(input, output, session) {
     selectedtax
   })
 
+  output$text <- renderText(as.character(str_split(input$bptext, "\n", simplify = TRUE)))
 
   # Count support for selected bipartitions
   bpsupport <- reactive({
@@ -1393,12 +1431,17 @@ server <- function(input, output, session) {
       trees <- trees[(input$conburnin + 1):length(trees)]
       treesall <- c(treesall, trees)
     }
-
+    selectedtax <- selectedtax()
+    
+    
     # check if taxa from the list are monophyletic (for whole list of trees)
-    bpcount <- lapply(treesall, is.monophyletic, tips = selectedtax())
+    bpcount <- for (i in 1:length(treesall))  {
+      is.monophyletic(treesall[[i]], tips = selectedtax)
+    }
 
     # count number of "TRUE"
     monotrue <- sum(unlist(bpcount))
+    monotrue <- as.numeric(monotrue)
 
     # summarize results in list
     bpsupport <- list(
@@ -1491,4 +1534,100 @@ server <- function(input, output, session) {
     )
     plotOutput("bipartPlot", height = treeheight(), width = treewidth())
   })
+
+
+  #| # Tab 6 (RWTY) -----
+  # Some useful plots from the RWTY package (https://cran.r-project.org/package=rwty)
+
+  # convert tree files to rwty format
+  rwtytrees <- reactive({
+    req(treefile$datapath)
+
+    rwtytrees <- list()
+    for (i in 1:length(alltrees())) {
+      trees <- list()
+      trees[[1]] <- alltrees()[[i]]
+      trees[[2]] <- NULL
+      trees[[3]] <- input$prop
+      names(trees) <- c("trees", "ptable", "gens.per.tree")
+      class(trees) <- "rwty.chain"
+      rwtytrees[[i]] <- trees
+    }
+    rwtytrees
+  })
+
+  rwtyP <- reactive({
+    req(treefile$datapath)
+
+    # install if not present
+    validate(
+      need("rwty" %in% rownames(installed.packages()), message = "\nPackage rwty not found! Please install.")
+    )
+
+    library(rwty)
+
+    # set number of processors fo rwty calculations
+    rwty.processors <<- input$ncores
+
+    # set theme for all rwty plots
+    theme_rwty <-
+      theme_light() +
+      theme(
+        axis.title = element_text(size = 12 * treescalefactor()),
+        legend.title = element_blank(),
+        axis.text = element_text(size = 11 * treescalefactor()),
+        legend.text = element_text(size = 12 * treescalefactor()),
+        title = element_text(size = 14 * treescalefactor()),
+        strip.text = element_text(size = 12 * treescalefactor(), face = "bold")
+      )
+    # Autocorrelation
+    if (input$rwtytype == "Autocorrelation") {
+      autocorplot <- makeplot.autocorr(rwtytrees())
+      autocorplot$autocorr.plot + theme_rwty
+    }
+
+    # Split frequencies
+    else if (input$rwtytype == "Split frequencies") {
+      cumsplitfreq <- makeplot.splitfreqs.cumulative(rwtytrees())
+      slidesplitfreq <- makeplot.splitfreqs.sliding(rwtytrees())
+      grid.arrange(cumsplitfreq$splitfreqs.cumulative.plot + theme_rwty,
+        slidesplitfreq$splitfreqs.sliding.plot + theme_rwty,
+        ncol = 1
+      )
+    }
+
+    # Topology traces
+    else if (input$rwtytype == "Topology trace") {
+      topologyplot <- makeplot.topology(rwtytrees())
+      trace <- topologyplot$trace.plot + theme_rwty
+      dense <- topologyplot$density.plot + theme_rwty
+      grid.arrange(trace, dense, ncol = 1)
+    }
+
+    # Tree space
+    else if (input$rwtytype == "Tree space") {
+      treespaceplot <- makeplot.treespace(rwtytrees())
+      heat <- treespaceplot$treespace.heatmap + theme_rwty
+      point <- treespaceplot$treespace.points.plot + theme_rwty
+      grid.arrange(heat, point, ncol = 1)
+    }
+  })
+
+  output$rwtyPlot <- renderPlot({
+    rwtyP()
+  })
+
+  output$rwtyPlot.ui <- renderUI({
+    req(treefile$datapath)
+    plotOutput("rwtyPlot", height = treeheight(), width = treewidth())
+  })
+
+  output$downloadrwtyplot <- downloadHandler(
+    filename = "RWTY.pdf",
+    content = function(file3) {
+      pdf(file3, height = input$height / 72, width = input$width / 72)
+      grid.arrange(rwtyP(), ncol = 1)
+      dev.off()
+    }
+  )
 }

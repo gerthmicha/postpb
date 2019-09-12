@@ -1,3 +1,8 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
 ## About 
 *postpb* can be used to evaluate the results of Bayesian phylogentics software packages (such as [*Phylobayes*](http://www.atgc-montpellier.fr/phylobayes/) and [*MrBayes*](http://nbisweden.github.io/MrBayes/)) in an interactive and graphical way. Although both programmes come with built-in methods for assessing convergence and mixing of parameters, additional analyses are often helpful when interpreting the outcomes of Bayesian phylogenetics software. *postpb* bundles a number of common post-analyses and exploratory plotting approaches in one shiny app.
 
@@ -12,8 +17,10 @@ To run *postpb* locally on your machine, open `R` and follow these instructions:
 ```R
 # Install required libraries (skip if already installed)
 install.packages(c( "distory",
+                    "doParallel",
                     "dplyr",
                     "DT",
+                    "foreach"
                     "gridExtra",
                     "markdown",
                     "phytools",
@@ -22,6 +29,9 @@ install.packages(c( "distory",
                     "shinythemes",
                     "shinyWidgets"), 
                     dependencies = TRUE)
+                    
+# If you want to use the rwty functionality, also install this package
+install.packages("rwty", dependencies = TRUE)
 
 # Run Shiny app
 library(shiny)
@@ -93,15 +103,24 @@ Here, tree samples obtained with *Phylobayes* or *MrBayes* can be analysed (file
 * Interactively chose outgroup with mouse (experimental)
 
 **Difference**
+
 * Highlight conflicting nodes between consensus trees of all chains (requires at least 2 tree files)
  
 **Pairwise Robinson-Foulds**
+
 * Plot Robinson-Foulds distances of trees within and between chains over generation
 
 **Bipartition support** 
+
 * Posterior probabilities for any taxonomic group in posterior sample of trees. 
 
-  
+
+**RWTY** 
+
+* Several plotting functions from the rwty package: autocorrelation, split frequencies, topology traces, and tree space. Please refer to the [package vignette](http://danwarren.net/plot-comparisons.html) and this [paper](https://doi.org/10.1093/gbe/evw171) for more information.
+
+
+
 ## Examples
 *postpb* comes with two sets of example data that can be loaded by clicking the buttons under the file selection dialogs in the trace and tree tabs. 
 
@@ -120,15 +139,17 @@ A preprint describing *postpb* is in preparation. Please also cite the appropria
 
 **Tree plots, RF and consensus calculations:** 
 
-  * Paradis, E., Claude, J. and Strimmer, K. (2004) APE: analyses of phylogenetics and evolution in R language. Bioinformatics, 20, 289–290. https://cran.r-project.org/package=ape
+  * Paradis, E., Claude, J. and Strimmer, K. (2004) APE: analyses of phylogenetics and evolution in R language. Bioinformatics 20: 289–290. https://cran.r-project.org/package=ape
   
-  * Revell, L. J. (2012) phytools: An R package for phylogenetic comparative biology (and other things). Methods Ecol. Evol., 3, 217-223. https://cran.r-project.org/package=phytools
+  * Revell LJ (2012) phytools: An R package for phylogenetic comparative biology (and other things). Methods Ecol Evol 3: 217-223. https://cran.r-project.org/package=phytools
   
-  * Chakerian, J. and Holmes, S. P. Computational Tools for Evaluating Phylogenetic and Heirarchical Clustering Trees. arXiv:1006.1015v1. https://cran.r-project.org/package=distory
-
 **MCMC diagnostics:**
 
-  * Plummer, M., Best, N., Cowles, K. and Vines, K. (2006) CODA: convergence diagnosis and output analysis for MCMC. R News, 6, 7–11. https://cran.r-project.org/package=coda
+  * Plummer M, Best N, Cowles K, Vines K (2006) CODA: convergence diagnosis and output analysis for MCMC. R News 6: 7–11. https://cran.r-project.org/package=coda
+  
+**RWTY:**
+  * Warren DL, Anthony JG, Lanfear RL (2017) "RWTY (R We There Yet): an R package for examining convergence of Bayesian phylogenetic analyses." Mol Biol Evol 34: 1016-1020. https://cran.r-project.org/package=rytn
+  
  
 ## Questions, comments, bugs
 

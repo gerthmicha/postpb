@@ -1,9 +1,11 @@
 # libraries
 library(coda)
 library(distory)
+library(doParallel)
 library(dplyr)
 library(DT)
 library(ggplot2)
+library(foreach)
 library(gridExtra)
 library(markdown)
 library(phytools)
@@ -14,7 +16,6 @@ library(shinythemes)
 library(shinyWidgets)
 library(stringr)
 library(tidyr)
-
 
 # Define UI
 ui <- fluidPage(
@@ -163,9 +164,10 @@ ui <- fluidPage(
             hr(),
             uiOutput("conburnin"),
             uiOutput("whichtree"),
-            numericInput("treethin", "Consider every Nth tree",
-              value = 10,
-              width = "30%"
+            flowLayout(
+              uiOutput("ncores"),
+              numericInput("treethin", "Consider every Nth tree",
+                           value = 10)
             ),
             uiOutput("outgroups"),
             conditionalPanel(
@@ -194,12 +196,13 @@ ui <- fluidPage(
               status = "primary",
               icon = icon("check")
             ),
-            prettyRadioButtons("treefont",
-              "Tree labels",
-              choiceValues = c(1, 2, 3, 4),
-              choiceNames = c("regular", "bold", "italic", "bold italic"),
-              selected = 1,
-              inline = TRUE
+            prettyCheckboxGroup(
+              inputId = "treefont",
+              label = "Tree labels",
+              choices = c("bold", "italic"),
+              inline = TRUE,
+              status = "primary",
+              icon = icon("check")
             ),
             sliderInput("treecex",
               "Scaling factor for labels and lines",
@@ -298,9 +301,27 @@ ui <- fluidPage(
                   width = "400px"
                 )
               )),
+              textOutput("text"),
               htmlOutput("bipart"),
               uiOutput("bipartPlot.ui")
-            )
+            ),
+            tabPanel(
+              "RWTY",
+              helpText(HTML("All plotting functions are all taken from the RWTY package. Please refer to the <a href='https://cran.r-project.org/web/packages/rwty/vignettes/rwty.html'>package vignette</a> for details on how to interpret the plots.<br><br>")),
+              pickerInput(
+                inputId = "rwtytype", 
+                label = "Select RWTY plot", 
+                choices = c("None", "Autocorrelation", "Split frequencies", "Topology trace", "Tree space"), 
+                multiple = FALSE,
+                selected = NULL
+              ),
+              uiOutput("rwtyPlot.ui"),
+              conditionalPanel(
+                condition = "output.rwtyPlot",
+                downloadButton("downloadrwtyplot",
+                               "Download plot as pdf",
+                               style = "padding:5px 10px; font-size:90%; background-color:white; color:black"))
+              )
           )
         )
       )
