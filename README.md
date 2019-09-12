@@ -1,8 +1,3 @@
----
-output:
-  html_document: default
-  pdf_document: default
----
 ## About 
 *postpb* can be used to evaluate the results of Bayesian phylogentics software packages (such as [*Phylobayes*](http://www.atgc-montpellier.fr/phylobayes/) and [*MrBayes*](http://nbisweden.github.io/MrBayes/)) in an interactive and graphical way. Although both programmes come with built-in methods for assessing convergence and mixing of parameters, additional analyses are often helpful when interpreting the outcomes of Bayesian phylogenetics software. *postpb* bundles a number of common post-analyses and exploratory plotting approaches in one shiny app.
 
