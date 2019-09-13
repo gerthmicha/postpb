@@ -15,7 +15,7 @@ install.packages(c( "distory",
                     "doParallel",
                     "dplyr",
                     "DT",
-                    "foreach"
+                    "foreach",
                     "gridExtra",
                     "markdown",
                     "phytools",
