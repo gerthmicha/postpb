@@ -3,6 +3,7 @@ server <- function(input, output, session) {
 
   # GENERAL OPTIONS ######
 
+  source("functions.R", local = TRUE)
 
   # increase maximum upload size
   options(shiny.maxRequestSize = 500 * 1024^2)
@@ -56,18 +57,7 @@ server <- function(input, output, session) {
   # get number of generations from tracefiles
   ngen <- reactive({
     req(tracefile$datapath)
-    # read all tracefiles
-    tracefilelist <- mclapply(tracefile$datapath, read.table,
-      sep = "\t",
-      header = TRUE,
-      check.names = FALSE,
-      comment.char = "["
-    )
-
-    # determine shortest trace file
-    ngen <- min(unlist(lapply(tracefilelist, nrow)))
-
-    ngen
+    get.ngen(tracefile)
   })
 
   # Get names of chains from file names provided
@@ -78,62 +68,14 @@ server <- function(input, output, session) {
 
   # Reading the trace files
   tracedata <- reactive({
-    req(tracefile$datapath)
-    req(input$prop)
-    req(input$burnin)
-
-    tracefilelist <- mclapply(tracefile$datapath, read.table,
-      sep = "\t",
-      header = TRUE,
-      check.names = FALSE,
-      comment.char = "["
-    )
-
-    prep.trace <- function(trace) {
-      # rename all first columns as 'iter'
-      colnames(trace)[1] <- "iter"
-
-      # apply thinning
-      trace <- trace[seq(from = 0, to = nrow(trace), by = input$prop), ]
-
-      # remove burnin
-      trace <- trace[input$burnin + 1:nrow(trace), ]
-
-      # remove meaningless variables (in terms of analysis here)
-      trace <- select(trace, -matches("time|topo"))
-    }
-
-    # add chain name as parameter
-    tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
-
-    # apply thinning and burnin
-    tracefilelist <- lapply(tracefilelist, prep.trace)
-
-    # combine all into 1 dataframe
-    plotDF <- do.call("rbind", tracefilelist)
-    plotDF <- gather(plotDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
-
-    return(plotDF)
+    req(tracefile$datapath, input$prop, input$burnin)
+    read.trace(tracefile)
   })
 
   # filter tracedata to only plot selected trace files in checkbox (default= select all)
   traceDF <- reactive({
     req(tracefile$datapath)
-
-    if (length(tracefile$datapath) == 1) {
-      traceDF <- tracedata()
-    }
-
-    if (length(tracefile$datapath) > 1) {
-      traceDF <- filter(tracedata(), trace %in% input$whichchain)
-    }
-
-    # This adds prettier error message in case no trace file is selected
-    validate(
-      need(nrow(traceDF) > 0, "Please select at least one trace file!")
-    )
-
-    traceDF
+    chose.trace(tracedata())
   })
 
 
@@ -201,14 +143,9 @@ server <- function(input, output, session) {
       )
   })
 
-
   # create color vector for consistent color schemes across all plots
   tracecolors <- reactive({
-    traces <- unique(tracedata()$trace)
-    colorvector <- c("#377eb8", "#ff7f00", "#4daf4a", "#984ea3")
-    colorvector <- colorvector[1:length(traces)]
-    names(colorvector) <- traces
-    colorvector
+    set.trace.colors(tracedata())
   })
 
   #| #  Tab 1 (Trace) -----
@@ -1200,24 +1137,6 @@ server <- function(input, output, session) {
       colvecs[[i]] <- colvec
     }
 
-    # function that plots 2 trees next to each other and hifhlights differences
-    # modified from http://blog.phytools.org/
-    phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
-      uniqT1 <- distinct.edges(x, y)
-      uniqT2 <- distinct.edges(y, x)
-      treeA.cs <- rep("black", dim(x$edge)[1])
-      treeA.cs[uniqT1] <- "#FF1493"
-      treeA.lw <- rep(input$treecex, dim(x$edge)[1])
-      treeA.lw[uniqT1] <- input$treecex * 2
-      treeB.cs <- rep("black", dim(y$edge)[1])
-      treeB.cs[uniqT2] <- "#FF1493"
-      treeB.lw <- rep(input$treecex, dim(x$edge)[1])
-      treeB.lw[uniqT2] <- input$treecex * 2
-      # par(mfrow = c(1, 2))
-      plot(x, edge.color = treeA.cs, main = main1, tip.color = coltip1, edge.width = treeA.lw, align.tip.label = TRUE, ...)
-      plot(y, edge.color = treeB.cs, main = main2, tip.color = coltip2, edge.width = treeB.lw, align.tip.label = TRUE, direction = "leftwards", ...)
-      invisible()
-    }
 
     # change plot layout according to number of chains analysed
     if (length(alltrees()) == 2) {
