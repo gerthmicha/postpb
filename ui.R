@@ -291,17 +291,20 @@ ui <- fluidPage(
               "Bipartition support",
               helpText("For any group of taxa in the dataset, this will determine in how many trees the group was monophyletic."),
               br(),
-              div(style = "display: inline-block;vertical-align:top", uiOutput("bpselect")),
-              div(style = "display: inline-block;vertical-align:top; width: 50px;", HTML("<br>")),
               div(style = "display: inline-block;vertical-align:top", conditionalPanel(
                 "output.bpselect",
                 textAreaInput("bptext",
-                  "or enter taxon names (1 per line).", "",
-                  height = "200px",
+                  "Enter taxon names (1 per line)", "",
+                  height = "170px",
                   width = "400px"
                 )
               )),
-              textOutput("text"),
+              div(style = "display: inline-block;vertical-align:top; width: 100px;", HTML("<br>")),
+              div(style = "display: inline-block; horizontal-align: middle", 
+                  uiOutput("bpselect"), HTML("<br><br><br>"),
+                  conditionalPanel(
+                    "output.bpselect",
+                    actionButton("check", "Submit", style = "float: right; padding:8px 10px; font-size:100%; background-color:white; color:black"))),
               htmlOutput("bipart"),
               uiOutput("bipartPlot.ui")
             ),
