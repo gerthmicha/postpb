@@ -3,7 +3,7 @@ server <- function(input, output, session) {
 
   # GENERAL OPTIONS ######
 
-  source("functions.R", local = TRUE)
+  source("app.R", local = TRUE)
 
   # increase maximum upload size
   options(shiny.maxRequestSize = 500 * 1024^2)
@@ -113,21 +113,19 @@ server <- function(input, output, session) {
     toggle("stats")
   })
 
-  # Create pdf download handle for plots
-  output$downloadPDF <- downloadHandler(
-    filename = "traceplots.pdf",
-    content = function(file) {
-      pdf(file, height = input$height / 72, width = input$width / 72)
-      grid.arrange(tP(), ncol = 1)
-      grid.arrange(vP(), ncol = 1)
-      grid.arrange(dP(), ncol = 1)
-      dev.off()
-    }
-  )
-
 
   #| CREATE PLOTS ------------------------------
 
+  #| General display options ------------------------------
+  
+  # get height & width of plot area from slider inputs
+  plotheight <- reactive({ input$height }) 
+  plotwidth <- reactive({  input$width  })
+  plotcex <- reactive({ input$cex })
+  
+  # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
+  scalefactor <- reactive({ (input$height + input$width) / 2000  }) 
+  
   # Set theme for all trace plots
   tracetheme <- reactive({
     req(scalefactor())
@@ -144,142 +142,35 @@ server <- function(input, output, session) {
   })
 
   # create color vector for consistent color schemes across all plots
-  tracecolors <- reactive({
-    set.trace.colors(tracedata())
-  })
+  tracecolors <- reactive({ set.trace.colors( tracedata()) })
 
   #| #  Tab 1 (Trace) -----
-
-  # XY plot for traces
-  tP <- reactive({
-    tP1 <- ggplot(traceDF(), aes(y = value, x = iter, fill = trace)) +
-      facet_wrap(~variable, scales = "free", ncol = 2) +
-      scale_color_manual(values = tracecolors())
-
-    # This adds points to XY plos only if this option was chosen in checkbox
-    if ("points" %in% input$traceplotstyle) {
-      tP1 <- tP1 + geom_point(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex)
-    }
-
-    # This adds lines to XY plos only if this option was chosen in checkbox
-    if ("lines" %in% input$traceplotstyle) {
-      tP1 <- tP1 + geom_line(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex / 2)
-    }
-
-    tP1 + tracetheme()
-  })
-
+  tP <- reactive({ xyplot( traceDF()) })
+  output$tracePlot <- renderPlot({ tP() })
+  output$tracePlot.ui <- render.traceplots( "tracePlot" )
+  
   #| # Tab 2 (Violin) -----
-  # Violin plot for traces
-  vP <- reactive({
-    vP1 <- ggplot(traceDF(), aes(y = value, x = trace, fill = trace)) +
-      facet_wrap(~variable, scales = "free", ncol = 2) +
-      scale_fill_manual(values = tracecolors()) +
-      guides(scale_color_manual())
-
-    # Users can add Boxplots and/or datapoints to violin plot
-    # Datapoints must always be first layer, so each combination of Violin/Boxplot/points is iterated below
-
-    # No points, no boxplots
-    if (!"boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
-      vP1 <- vP1 +
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA)
-    }
-
-    # With points, no boxplots
-    if (!"boxplot" %in% input$violinplotstyle & "points" %in% input$violinplotstyle) {
-      vP1 <- vP1 +
-        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA)
-    }
-
-    # No points, with boxplots
-    if ("boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
-      vP1 <- vP1 +
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA) +
-        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
-    }
-
-    # With points and boxplots
-    if ("points" %in% input$violinplotstyle & "boxplot" %in% input$violinplotstyle) {
-      vP1 <- vP1 +
-        geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
-        geom_violin(trim = TRUE, alpha = 0.5, color = NA) +
-        geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
-    }
-
-    vP1 + tracetheme() + theme(axis.text.x = element_blank())
-  })
-
+  vP <- reactive({ violinplot( traceDF()) })
+  output$violinPlot <- renderPlot({ vP() })
+  output$violinPlot.ui <- render.traceplots( "violinPlot" )
+  
   #| # Tab 3 (Density) -----
   # density plot for traces
-  dP <- reactive({
-    ggplot(traceDF()) +
-      geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0) +
-      facet_wrap(~variable, scales = "free", ncol = 2) +
-      scale_fill_manual(values = tracecolors()) +
-      tracetheme() + theme(axis.text.y = element_blank())
-  })
-
-
-  #| DISPLAY PLOTS ------------------------------
-
-  # get height & width of plot area from slider inputs
-  plotheight <- reactive({
-    input$height
-  }) 
-  
-  plotwidth <- reactive({
-    input$width
-  })
-
-  plotcex <- reactive({
-    input$cex
-  })
-  
-  # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
-  scalefactor <- reactive({
-    (input$height + input$width) / 2000
-  }) 
-
-
-  # render all 3 plots
-  output$tracePlot <- renderPlot({
-    tP()
-  })
-  output$tracePlot.ui <- renderUI({
-    withSpinner(plotOutput("tracePlot",
-      height = plotheight(),
-      width = plotwidth()
-    ),
-    color = "#2C4152", size = 0.5
-    )
-  })
-
-  output$violinPlot <- renderPlot({
-    vP()
-  })
-  output$violinPlot.ui <- renderUI({
-    withSpinner(plotOutput("violinPlot",
-      height = plotheight(),
-      width = plotwidth()
-    ),
-    color = "#2C4152", size = 0.5
-    )
-  })
-  
-  output$densePlot <- renderPlot({
-    dP()
-  })
-  output$densePlot.ui <- renderUI({
-    withSpinner(plotOutput("densePlot",
-      height = plotheight(),
-      width = plotwidth()
-    ),
-    color = "#2C4152", size = 0.5
-    )
-  })
-
+  dP <- reactive({ densityplot( traceDF()) })
+  output$densePlot <- renderPlot({ dP() })
+  output$densePlot.ui <- render.traceplots( "densePlot" )
+ 
+   # Create pdf download handle for plots
+  output$downloadPDF <- downloadHandler(
+    filename = "traceplots.pdf",
+    content = function(file) {
+      pdf(file, height = input$height / 72, width = input$width / 72)
+      grid.arrange(tP(), ncol = 1)
+      grid.arrange(vP(), ncol = 1)
+      grid.arrange(dP(), ncol = 1)
+      dev.off()
+    }
+  )
 
   #| SUMMARY STATISTICS (Tab 4) ------------------------------
 
@@ -403,30 +294,8 @@ server <- function(input, output, session) {
     is.num <- sapply(results, is.numeric)
     results[is.num] <- lapply(results[is.num], round, 2)
 
-    # call dataframe with DT::datatable to enable nice formatting
-    sumres <- datatable(results,
-      selection = "none",
-      extensions = "Buttons",
-      options = list(
-        searching = FALSE,
-        ordering = FALSE,
-        orientation = "landscape",
-        pageLength = nrow(results),
-        dom = "Bt",
-        buttons = c("copy", "csv", "print")
-      )
-    ) %>%
-      formatStyle("ESS", color = styleInterval(99.99, c("red", "black"))) %>%
-      formatStyle(names(results)[grep("Geweke", names(results))], color = styleInterval(2, c("black", "red"))) %>%
-      formatStyle(0, fontWeight = "bold")
-
-    if (length(tracenames) > 1) {
-      sumres <- sumres %>%
-        formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c("black", "red"))) %>%
-        formatStyle("Discrepancy", color = styleInterval(0.3, c("black", "red")))
-    }
-
-    sumres
+   style.table(results)
+   
   })
 
 
@@ -443,20 +312,20 @@ server <- function(input, output, session) {
   observeEvent(input$treefile, {
     treefile$datapath <- input$treefile$datapath
     treefile$name <- input$treefile$name
-    example$click <- FALSE
+    example$click <- 0
   })
 
   # if 'example' button is pressed, load example from example folder
   observeEvent(input$exampletree1, {
     treefile$datapath <- list.files("example/", "\\.treelist\\>", full.names = TRUE)
     treefile$name <- list.files("example/", "\\.treelist\\>", full.names = FALSE)
-    example$click <- TRUE
+    example$click <- 1
   })
 
   observeEvent(input$exampletree2, {
     treefile$datapath <- list.files("example/", "\\.t\\>", full.names = TRUE)
     treefile$name <- list.files("example/", "\\.t\\>", full.names = FALSE)
-    example$click <- FALSE
+    example$click <- 2
   })
 
   # if 'info' button is pressed, show popup that explains examples
@@ -472,48 +341,12 @@ server <- function(input, output, session) {
   # read in tree files
   completetrees <- reactive({
     req(treefile$datapath)
-
+    
     # only update tree format when new files are uploaded
     input$treefile
     isolate(treeformat <- input$treefiletype)
-
-    if (example$click == TRUE) {
-      treeformat <- "Newick (e.g., Phylobayes)"
-    }
-
-    if (example$click == FALSE) {
-      treeformat <- "Nexus (e.g., MrBayes)"
-    }
-
-    treelist <- list()
-
-    for (i in 1:length(treefile$datapath)) {
-      treepath <- treefile$datapath[i]
-
-      if (treeformat == "Newick (e.g., Phylobayes)") {
-        firstline <- readLines(treepath, n = 1)
-        validate(
-          # add very simple check to make sure file IS NOT nexus format
-          need(!is.element("#Nexus", firstline), "Error reading file(s). Please check format."),
-          need(!is.element("#NEXUS", firstline), "Error reading file(s). Please check format."),
-          need(!is.element("#nexus", firstline), "Error reading file(s). Please check format.")
-        )
-        treelist[[i]] <- ape::read.tree(treepath)
-      }
-
-      if (treeformat == "Nexus (e.g., MrBayes)") {
-
-        # add very simple check to make sure file IS nexus format
-        firstline <- readLines(treepath, n = 1)
-        validate(
-          need(any(firstline == c("#Nexus", "#NEXUS", "#nexus")), "Error reading file(s). Please check format.")
-        )
-        treelist[[i]] <- ape::read.nexus(treepath)
-      }
-
-      treelist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by = input$treethin)]
-    }
-    treelist
+    
+    read.treefiles(treefile)
   })
 
   alltrees <- reactive({
@@ -556,7 +389,7 @@ server <- function(input, output, session) {
   # extract the tree tip labels (= taxon names)
   tipnames <- reactive({
     req(treefile$datapath)
-    tree1 <- alltrees()[[1]][[1]]
+    tree1 <- completetrees()[[1]][[1]]
     labels <- sort(tree1$tip.label)
 
     # pickerInput requires list
@@ -1192,7 +1025,6 @@ server <- function(input, output, session) {
       req(length(input$whichtree) > 0)
     }
 
-    # rflist <- list()
     rflist <- list()
     for (i in 1:length(alltrees())) {
       tree <- alltrees()[[i]]
@@ -1293,13 +1125,14 @@ server <- function(input, output, session) {
 
 
   #| # Tab 5 (Bipartition support) -----
+  
   # Tab 5 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group.
 
   # Picker input to chose which taxa to check (similar to highlight color choser)
   output$bpselect <- renderUI({
     req(treefile$datapath)
     pickerInput("bpselect",
-      label = ("Select taxa"),
+      label = ("or select taxa"),
       choices = tipnames(),
       multiple = TRUE,
       options = list(
@@ -1314,9 +1147,8 @@ server <- function(input, output, session) {
     )
   })
 
-
   # Selection of taxa
-  selectedtax <- reactive({
+  selectedtax <- eventReactive( input$check, {
     req(treefile$datapath)
 
     # Use taxa from inputpicker if nothing is entered into the text field
@@ -1329,16 +1161,21 @@ server <- function(input, output, session) {
       selectedtax <- as.character(str_split(input$bptext, "\n", simplify = TRUE))
       selectedtax <- unique(selectedtax[selectedtax != ""]) # remove empty lines and multiply selected taxa
     }
-
+    
     selectedtax
   })
 
-  output$text <- renderText(as.character(str_split(input$bptext, "\n", simplify = TRUE)))
 
   # Count support for selected bipartitions
   bpsupport <- reactive({
-    req(treefile$datapath)
-    if (length(completetrees()) > 1) {
+    req(alltrees())
+    
+    validate(
+      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
+      need(length(intersect(selectedtax(), tipnames())) == length(selectedtax()), "Not all taxon name(s) are present in tree. Please check.")
+    )
+    
+    if (length(alltrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
 
@@ -1348,25 +1185,30 @@ server <- function(input, output, session) {
       # get trees
       trees <- alltrees()[[i]]
       trees <- trees[(input$conburnin + 1):length(trees)]
-      treesall <- c(treesall, trees)
+      if (i == 1){
+        treesall <- trees
+      }
+      else{ treesall <- c(treesall, trees) }
     }
+    
     selectedtax <- selectedtax()
     
     
     # check if taxa from the list are monophyletic (for whole list of trees)
-    bpcount <- for (i in 1:length(treesall))  {
-      is.monophyletic(treesall[[i]], tips = selectedtax)
+    bpcount <- vector()
+    bpcount <- foreach (i = 1:length(treesall), .packages = "ape", combine = c, .inorder = FALSE) %dopar% {
+      is.monophyletic(treesall[[i]], selectedtax())
     }
 
     # count number of "TRUE"
     monotrue <- sum(unlist(bpcount))
     monotrue <- as.numeric(monotrue)
-
+    
     # summarize results in list
     bpsupport <- list(
       absolute = monotrue, # in how many trees is the group monophyletic
       relative = formatC(monotrue / length(treesall) * 100, digits = 2, format = "f"), # in percent
-      total = length(unlist(bpcount)) # how many trees were analysed
+      total = length(bpcount) # how many trees were analysed
     )
 
     bpsupport
@@ -1376,13 +1218,9 @@ server <- function(input, output, session) {
     req(treefile$datapath)
     req(selectedtax())
     validate(
-      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu.")
+      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
+      need(selectedtax() %in% unlist(tipnames()), "Taxon name(s) not in tree file. Please check.")
     )
-    if (is.character(selectedtax())) {
-      validate(
-        need(selectedtax() %in% tipnames(), "Taxon name(s) not in tree file. Please check.")
-      )
-    }
 
     # Print result as HTML formatted text
     paste0(
@@ -1399,13 +1237,7 @@ server <- function(input, output, session) {
 
   # also plot the tested groups as monophyletic. This is just for visual confirmation that the right taxa were selected.
   output$bipartPlot <- renderPlot({
-    req(treefile$datapath, selectedtax())
-
-    # only print tree for at least 2 taxa
-    validate(
-      need(length(selectedtax()) > 1, message = FALSE),
-      need(selectedtax() %in% tipnames(), message = FALSE)
-    )
+    req(treefile$datapath, selectedtax(), bpsupport())
 
     # get all tipnams, the ones that were selected and extract the non selected ones
     alltips <- tipnames()
@@ -1499,6 +1331,7 @@ server <- function(input, output, session) {
         title = element_text(size = 14 * treescalefactor()),
         strip.text = element_text(size = 12 * treescalefactor(), face = "bold")
       )
+    
     # Autocorrelation
     if (input$rwtytype == "Autocorrelation") {
       autocorplot <- makeplot.autocorr(rwtytrees())

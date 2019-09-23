@@ -3,3 +3,6 @@ rsconnect/
 .html
 test.R
 .treeplot
+.Rproj.user
+postpb.Rproj
+.treeplot.pdf
