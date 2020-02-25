@@ -1,11 +1,9 @@
 # get number of generations from trace files
 # read all tracefiles
 get.ngen <- function(tracefile){
-  tracefilelist <- mclapply(tracefile$datapath, read.table,
+  tracefilelist <- lapply(tracefile$datapath, data.table::fread,
                             sep = "\t",
-                            header = TRUE,
-                            check.names = FALSE,
-                            comment.char = "["
+                            header = TRUE
   )
   # determine shortest trace file
   ngen <- min(unlist(lapply(tracefilelist, nrow)))
@@ -14,11 +12,9 @@ get.ngen <- function(tracefile){
 
 # read and re-format the trace files
 read.trace <- function(tracefile)({
-  tracefilelist <- mclapply(tracefile$datapath, read.table,
+  tracefilelist <- lapply(tracefile$datapath, data.table::fread,
                             sep = "\t",
                             header = TRUE,
-                            check.names = FALSE,
-                            comment.char = "["
   )
   # add chain name as parameter
   tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
@@ -225,7 +221,7 @@ read.treefiles <- function(treefile){
   return(treelist)
 }
 
-# function that plots 2 trees next to each other and hifhlights differences
+# function that plots 2 trees next to each other and highlights differences
 # modified from http://blog.phytools.org/
 phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
   uniqT1 <- distinct.edges(x, y)
