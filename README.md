@@ -11,7 +11,8 @@ To run *postpb* locally on your machine, open `R` and follow these instructions:
 
 ```R
 # Install required libraries (skip if already installed)
-install.packages(c( "distory",
+install.packages(c( "data.table",
+                    "distory",
                     "doParallel",
                     "dplyr",
                     "DT",
