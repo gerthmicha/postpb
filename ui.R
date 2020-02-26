@@ -1,3 +1,6 @@
+# load libraries
+source("libraries.R", local = TRUE)
+
 # Define UI
 ui <- fluidPage(
   theme = shinytheme("flatly"), # defines theme of app

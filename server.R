@@ -2,9 +2,7 @@ server <- function(input, output, session) {
 
 
   # GENERAL OPTIONS ######
-
   source("app.R", local = TRUE)
-  source("libraries.R", local = TRUE)
   
   # increase maximum upload size
   options(shiny.maxRequestSize = 500 * 1024^2)
