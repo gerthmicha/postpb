@@ -1,3 +1,19 @@
+# all required libraries can be installed with 
+# install.packages(c( "distory",
+#                     "data.table",
+#                     "doParallel",
+#                     "dplyr",
+#                     "DT",
+#                     "foreach",
+#                     "gridExtra",
+#                     "markdown",
+#                     "phytools",
+#                     "shinycssloaders",
+#                     "shinyjs",
+#                     "shinythemes",
+#                     "shinyWidgets"), 
+#                  dependencies = TRUE)
+
 # load libraries
 library(coda)
 library(data.table)
