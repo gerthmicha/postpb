@@ -490,6 +490,14 @@ server <- function(input, output, session) {
     )
   })
 
+  # After outgroup rooting has been performed, reset chosen outgroups 
+  observeEvent(roottree(), {
+    updatePickerInput(session, "outgroup",
+                      label = "Select outgroup(s) for rooting",
+                      choices = c(tipnames())
+    )
+  })
+  
   # Similar picker input to chose which taxa to highlight
   output$highlight <- renderUI({
     req(treefile$datapath)
@@ -743,58 +751,16 @@ server <- function(input, output, session) {
       req(length(input$whichtree) > 0)
     }
 
-    # require these for interactive rooting
-    input$reroot
-    input$midpoint
-    input$unroot
-    isolate(outgroup <- og$outgroup)
-
-
-    treesall <- list()
-    class(treesall) <- "multiPhylo"
-    for (i in 1:length(alltrees())) {
-      # get trees
-      trees <- alltrees()[[i]]
-      trees <- trees[(input$conburnin + 1):length(trees)]
-      if (length(treesall) >= 1) {
-        treesall <- c(treesall, trees)
-      }
-      if (length(treesall) == 0) {
-        treesall <- trees
-      }
-    }
-
-
+    # combine trees from all files into single multiphylo object
+    treesall <- combine.trees(alltrees())
+    
     # get consensus branch lengths
     contree <- phytools::consensus.edges(treesall, method = "least.squares")
-
 
     # and count how often the nodes are present in all trees (=pp) and writes this as nodelabels to the tree
     sv <- prop.clades(contree, treesall)
     contree$node.label <- sv / length(treesall)
     contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
-
-    # do the rooting
-    # unroot
-    if ("<None>" %in% outgroup) {
-      contree <- unroot(contree)
-    }
-
-    # midpoint root
-    if ("<Midpoint>" %in% outgroup) {
-      contree <- phytools::midpoint.root(contree)
-    }
-
-    # root with outgroup
-    if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
-      validate(
-        need(is.monophyletic(contree, outgroup), "The specified outgroup is not monophyletic!")
-      )
-      contree <- root(contree,
-        outgroup = outgroup,
-        resolve.root = TRUE
-      )
-    }
 
     # adjust node labels: 1) remove "root" label
     contree$node.label[contree$node.label == "Root"] <- ""
@@ -817,7 +783,7 @@ server <- function(input, output, session) {
     contree <- di2multi(contree, tol = 1e-10000)
 
     # remove node labels that correspond to collapsed branches
-    contree$node.label[contree$node.label < input$postprop] <- ""
+    # contree$node.label[contree$node.label < input$postprop] <- ""
 
     # call tree
     contree <- ladderize(contree)
@@ -825,12 +791,50 @@ server <- function(input, output, session) {
     contree
   })
 
+ roottree <- reactive({
+    req(contree())
+    roottree <- contree()
+    
+    # require these for interactive rooting
+    input$reroot
+    input$midpoint
+    input$unroot
+    isolate(outgroup <- og$outgroup)
+    
+    # do the rooting
+    # unroot
+    if ("<None>" %in% outgroup) {
+      roottree <- unroot(roottree)
+    }
+    
+    # midpoint root
+    if ("<Midpoint>" %in% outgroup) {
+      roottree <- phytools::midpoint.root(roottree)
+    }
+    
+    # root with outgroup
+    if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
+      validate(
+        need(is.monophyletic(roottree, outgroup), "The specified outgroup is not monophyletic!")
+      )
+      roottree <- root(roottree,
+                      outgroup = outgroup,
+                      resolve.root = TRUE
+      )
+    }
+    
+    # remove 'root label'
+    roottree$node.label[roottree$node.label == "Root"] <- ""
+   
+    roottree
+  })
+ 
   # now render consensus plot
   output$consensusPlot <- renderPlot({
     # colorvector again
-    concolors1 <- contree()$tip.label %in% input$highlight
-    concolors2 <- contree()$tip.label %in% input$highlight2
-    concolvec <- rep("black", length = length(contree()$tip.label))
+    concolors1 <- roottree()$tip.label %in% input$highlight
+    concolors2 <- roottree()$tip.label %in% input$highlight2
+    concolvec <- rep("black", length = length(roottree()$tip.label))
     concolvec[which(concolors1 == TRUE)] <- "#377eb8"
     concolvec[which(concolors2 == TRUE)] <- "#ff7f00"
     concolvec[which(concolors1 == TRUE & concolors2 == TRUE)] <- "#4daf4a"
@@ -838,7 +842,7 @@ server <- function(input, output, session) {
     treetot <- sum(unlist(lapply(alltrees(), length)))
 
     # plot
-    plot(contree(),
+    plot(roottree(),
       main = paste("Consensus from", treetot, "trees,", "burnin =", input$conburnin, "per chain"), # this adds the burnin to tree title
       cex.main = input$treecex * 1.1,
       cex = input$treecex,
@@ -850,7 +854,7 @@ server <- function(input, output, session) {
       tip.color = concolvec
     )
     nodelabels(
-      text = contree()$node.label, # some formatting for the pp values
+      text = roottree()$node.label, # some formatting for the pp values
       frame = "none",
       adj = 0,
       cex = input$treecex * 0.8
@@ -869,10 +873,13 @@ server <- function(input, output, session) {
   output$consensusPlot.ui <- renderUI({
     withSpinner(plotOutput("consensusPlot",
       height = treeheight(),
+      # brush here enables interactive selection of taxa
       brush = brushOpts(
         id = "plot_brush", # this enables selecting
         resetOnNew = TRUE,
         delay = 2000,
+        direction = "y", # selection using y axis only
+        fill = "#ccc",
         delayType = "debounce"
       ),
       width = treewidth() * 0.75
@@ -882,32 +889,32 @@ server <- function(input, output, session) {
     )
   })
 
-
-
   # also export the tree as newick if wanted
   output$newick <- downloadHandler(
-    filename = "consensus.tre",
+    filename = "consensus.nwk",
     content = function(file4) {
-      awrite.tree(contree(),
+        write.tree(roottree(),
         file = file4, append = FALSE,
         digits = 10, tree.names = FALSE
       )
     }
   )
 
-  # (experimental) enable interactive selection of taxon selection for rooting
+  # Enable interactive selection of taxon selection for rooting
   # first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
   # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
   tipDF <- reactive({
     req(input$plot_brush)
+    
     # which edges belong to tips?
-    is_tip <- contree()$edge[, 2] <= length(contree()$tip.label)
+    is_tip <- roottree()$edge[, 2] <= length(roottree()$tip.label)
+    
     # order according
-    ordered_tips <- contree()$edge[is_tip, 2]
+    ordered_tips <- roottree()$edge[is_tip, 2]
 
     # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
-    tips <- as.data.frame(contree()$tip.label[ordered_tips])
-    tiporder <- as.data.frame(1:length(contree()$tip.label))
+    tips <- as.data.frame(roottree()$tip.label[ordered_tips])
+    tiporder <- as.data.frame(1:length(roottree()$tip.label))
     tipDF <- as.data.frame(cbind(tips, tiporder))
     names(tipDF) <- c("tips", "tiporder")
 
@@ -919,7 +926,6 @@ server <- function(input, output, session) {
   # important here are only the ymin & ymax values: ape plots each tree from 0 (bottom) to Ntaxa, and difference between taxa is always 1
   conroot <- reactive({
     req(input$plot_brush)
-
     # get names
     tipDF <- tipDF() %>%
       filter(tiporder >= input$plot_brush$ymin) %>%
@@ -928,16 +934,72 @@ server <- function(input, output, session) {
     as.character(tipDF$tips)
   })
 
-  # With the tipnames, update selection in outgroup pickerInput
-  observeEvent(conroot(), {
+  # Once selected, use popup to decide what to do with selected taxa (highlight or rooting)
+  
+  observeEvent( input$plot_brush ,{
+    showModal(modalDialog(
+      title = NULL,
+      HTML(paste("You have selected ", length(conroot()), " taxa\n",  "<br><br>")),
+      align = "center",
+      actionButton("rootbutton", HTML("Re-root with<br>selection"), 
+                   width = "150px",
+                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
+      actionButton("colbutton", 
+                   HTML("<font color=\"#377eb8\">Colour selection<br>Blue</font>"),
+                   width = "150px",
+                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
+      actionButton("colbutton2", 
+                   HTML("<font color=\"#ff7f00\">Colour selection<br>Orange</font>"), 
+                   width = "150px",
+                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
+      easyClose = TRUE,
+      footer = tagList(
+        modalButton("Cancel")
+      )
+    )
+    )
+  })
+  
+  # If any of the buttons is pressed, close popup
+  observeEvent(input$rootbutton, {
+    removeModal()
+  })
+  observeEvent(input$colbutton, {
+    removeModal()
+  })
+  observeEvent(input$colbutton2, {
+    removeModal()
+  })
+  
+  # With this selection made, update selection in outgroup pickerInput...
+  observeEvent(input$rootbutton, {
     updatePickerInput(session, "outgroup",
       label = "Select outgroup(s) for rooting",
       choices = c(tipnames()),
       selected = conroot()
     )
     session$resetBrush("plot_brush")
+    og$outgroup <- conroot()
   })
 
+  # ... or color taxa in blue ...
+  observeEvent(input$colbutton, {
+    updatePickerInput(session, "highlight",
+                      choices = c(tipnames()),
+                      selected = unique(c(input$highlight, conroot()))
+    )
+    session$resetBrush("plot_brush")
+  })
+  
+  # ... or orange
+  observeEvent(input$colbutton2, {
+    updatePickerInput(session, "highlight2",
+                      choices = c(tipnames()),
+                      selected = unique(c(input$highlight2, conroot()))
+    )
+    session$resetBrush("plot_brush")
+  })
+  
 
   #| # Tab 3 (Difference) ----- 
   # Plot 3 shows 2 consensus plots with comparison
