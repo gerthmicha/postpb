@@ -245,7 +245,6 @@ ui <- fluidPage(
                   style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
                 )
               ),
-              # verbatimTextOutput("conroot"),
               br()
             ),
             tabPanel(
