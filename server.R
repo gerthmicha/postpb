@@ -4,7 +4,8 @@ server <- function(input, output, session) {
   # GENERAL OPTIONS ######
 
   source("app.R", local = TRUE)
-
+  source("libraries.R", local = TRUE)
+  
   # increase maximum upload size
   options(shiny.maxRequestSize = 500 * 1024^2)
 
@@ -117,15 +118,23 @@ server <- function(input, output, session) {
   #| CREATE PLOTS ------------------------------
 
   #| General display options ------------------------------
-  
+
   # get height & width of plot area from slider inputs
-  plotheight <- reactive({ input$height }) 
-  plotwidth <- reactive({  input$width  })
-  plotcex <- reactive({ input$cex })
-  
+  plotheight <- reactive({
+    input$height
+  })
+  plotwidth <- reactive({
+    input$width
+  })
+  plotcex <- reactive({
+    input$cex
+  })
+
   # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
-  scalefactor <- reactive({ (input$height + input$width) / 2000  }) 
-  
+  scalefactor <- reactive({
+    (input$height + input$width) / 2000
+  })
+
   # Set theme for all trace plots
   tracetheme <- reactive({
     req(scalefactor())
@@ -142,25 +151,38 @@ server <- function(input, output, session) {
   })
 
   # create color vector for consistent color schemes across all plots
-  tracecolors <- reactive({ set.trace.colors( tracedata()) })
-
+  tracecolors <- reactive({
+    set.trace.colors(tracedata())
+  })
   #| #  Tab 1 (Trace) -----
-  tP <- reactive({ xyplot( traceDF()) })
-  output$tracePlot <- renderPlot({ tP() })
-  output$tracePlot.ui <- render.traceplots( "tracePlot" )
-  
+  tP <- reactive({
+    xyplot(traceDF())
+  })
+  output$tracePlot <- renderPlot({
+    tP()
+  })
+  output$tracePlot.ui <- render.traceplots("tracePlot")
+
   #| # Tab 2 (Violin) -----
-  vP <- reactive({ violinplot( traceDF()) })
-  output$violinPlot <- renderPlot({ vP() })
-  output$violinPlot.ui <- render.traceplots( "violinPlot" )
-  
+  vP <- reactive({
+    violinplot(traceDF())
+  })
+  output$violinPlot <- renderPlot({
+    vP()
+  })
+  output$violinPlot.ui <- render.traceplots("violinPlot")
+
   #| # Tab 3 (Density) -----
   # density plot for traces
-  dP <- reactive({ densityplot( traceDF()) })
-  output$densePlot <- renderPlot({ dP() })
-  output$densePlot.ui <- render.traceplots( "densePlot" )
- 
-   # Create pdf download handle for plots
+  dP <- reactive({
+    densityplot(traceDF())
+  })
+  output$densePlot <- renderPlot({
+    dP()
+  })
+  output$densePlot.ui <- render.traceplots("densePlot")
+
+  # Create pdf download handle for plots
   output$downloadPDF <- downloadHandler(
     filename = "traceplots.pdf",
     content = function(file) {
@@ -207,7 +229,7 @@ server <- function(input, output, session) {
         filter(trace == tracenames[i]) %>%
         select(-trace)
       chainlengths[i] <- nrow(traceDF1)
-      geweke <- geweke.diag(as.mcmc(traceDF1))[[1]] # first item in geweke.diag result are the actual values
+      geweke <- coda::geweke.diag(coda::as.mcmc(traceDF1))[[1]] # first item in geweke.diag result are the actual values
       geweke <- data.frame(abs(geweke))
       names(geweke) <- paste("Geweke", tracenames[i], sep = " ")
       geweke_res[[i]] <- geweke
@@ -220,7 +242,7 @@ server <- function(input, output, session) {
     results <- data.frame(t(rbind(Mean, SD, ess)))
     names(results) <- c("Mean", "SD", "ESS")
     results <- cbind(results, hpd)
-    results <- select(results, -SD, -ESS, SD, ESS)
+    results <- dplyr::select(results, -SD, -ESS, SD, ESS)
     results <- cbind(results, geweke_all)
 
     # remove 'iter' & 'time' variables
@@ -248,7 +270,7 @@ server <- function(input, output, session) {
         Discrepancy <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
         Discrepancy[2, ] <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
         Discrepancy[3, ] <- 2 * abs(means[2, ] - means[3, ]) / (sds[2, ] + sds[3, ])
-        Discrepancy <- summarize_all(Discrepancy, mean)
+        Discrepancy <- dplyr::summarize_all(Discrepancy, mean)
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
       }
       if (length(tracenames) == 4) {
@@ -258,7 +280,7 @@ server <- function(input, output, session) {
         Discrepancy[4, ] <- 2 * abs(means[2, ] - means[3, ]) / (sds[2, ] + sds[3, ])
         Discrepancy[5, ] <- 2 * abs(means[2, ] - means[4, ]) / (sds[2, ] + sds[4, ])
         Discrepancy[6, ] <- 2 * abs(means[3, ] - means[4, ]) / (sds[3, ] + sds[4, ])
-        Discrepancy <- summarize_all(Discrepancy, mean)
+        Discrepancy <- dplyr::summarize_all(Discrepancy, mean)
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
       }
 
@@ -272,11 +294,11 @@ server <- function(input, output, session) {
         tracex <- traceDF %>%
           filter(trace == tracenames[j]) %>%
           select(-trace)
-        tracelist[[j]] <- mcmc(tracex[1:min_chainlength, 2:ncol(tracex)])
+        tracelist[[j]] <- coda::mcmc(tracex[1:min_chainlength, 2:ncol(tracex)])
       }
 
       # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe
-      gel.res <- gelman.diag(tracelist, autoburnin = FALSE, multivariate = FALSE)
+      gel.res <- coda::gelman.diag(tracelist, autoburnin = FALSE, multivariate = FALSE)
       gel.point <- data.frame(gel.res$psrf[, 1])
       gel.ci <- data.frame(gel.res$psrf[, 2])
       names(gel.point) <- "GR point estimate"
@@ -284,8 +306,8 @@ server <- function(input, output, session) {
       gel.point <- tibble::rownames_to_column(gel.point)
       gel.ci <- tibble::rownames_to_column(gel.ci)
       results <- tibble::rownames_to_column(results)
-      results <- full_join(results, gel.point, by = "rowname")
-      results <- full_join(results, gel.ci, by = "rowname")
+      results <- dplyr::full_join(results, gel.point, by = "rowname")
+      results <- dplyr::full_join(results, gel.ci, by = "rowname")
       row.names(results) <- results$rowname
       results <- results[, 2:ncol(results)]
     }
@@ -294,8 +316,7 @@ server <- function(input, output, session) {
     is.num <- sapply(results, is.numeric)
     results[is.num] <- lapply(results[is.num], round, 2)
 
-   style.table(results)
-   
+    style.table(results)
   })
 
 
@@ -341,11 +362,11 @@ server <- function(input, output, session) {
   # read in tree files
   completetrees <- reactive({
     req(treefile$datapath)
-    
+
     # only update tree format when new files are uploaded
     input$treefile
     isolate(treeformat <- input$treefiletype)
-    
+
     read.treefiles(treefile)
   })
 
@@ -409,12 +430,12 @@ server <- function(input, output, session) {
   # Get the number of cores interactively, and set the default to ( total cores -1 )
 
   totalcores <- reactive({
-    detectCores()[1]
+    parallel::detectCores()[1]
   })
 
   observe({
     totalcores()
-    registerDoParallel(cores = input$ncores)
+    doParallel::registerDoParallel(cores = input$ncores)
   })
 
   output$ncores <- renderUI({
@@ -431,7 +452,7 @@ server <- function(input, output, session) {
   output$whichtree <- renderUI({
     req(treefile$datapath[2])
     treenames <- lapply(treenames(), `[[`, 1)
-    prettyCheckboxGroup(
+    shinyWidgets::prettyCheckboxGroup(
       inputId = "whichtree",
       label = "Select tree file[s] to analyse",
       choices = treenames,
@@ -654,7 +675,7 @@ server <- function(input, output, session) {
 
       # midpoint root if chosen
       if ("<Midpoint>" %in% outgroup) {
-        currtree <- midpoint.root(trees[[input$generation]])
+        currtree <- phytools::midpoint.root(trees[[input$generation]])
       }
 
       # root with outgroup if chosen
@@ -745,9 +766,9 @@ server <- function(input, output, session) {
 
 
     # get consensus branch lengths
-    contree <- consensus.edges(treesall, method = "least.squares")
-    
-    
+    contree <- phytools::consensus.edges(treesall, method = "least.squares")
+
+
     # and count how often the nodes are present in all trees (=pp) and writes this as nodelabels to the tree
     sv <- prop.clades(contree, treesall)
     contree$node.label <- sv / length(treesall)
@@ -761,7 +782,7 @@ server <- function(input, output, session) {
 
     # midpoint root
     if ("<Midpoint>" %in% outgroup) {
-      contree <- midpoint.root(contree)
+      contree <- phytools::midpoint.root(contree)
     }
 
     # root with outgroup
@@ -836,8 +857,6 @@ server <- function(input, output, session) {
     )
     add.scale.bar(lwd = input$treecex)
 
-
-
     # Copy plot to device
     dev.copy2pdf(
       file = ".treeplot.pdf",
@@ -869,7 +888,7 @@ server <- function(input, output, session) {
   output$newick <- downloadHandler(
     filename = "consensus.tre",
     content = function(file4) {
-      write.tree(contree(),
+      awrite.tree(contree(),
         file = file4, append = FALSE,
         digits = 10, tree.names = FALSE
       )
@@ -933,8 +952,10 @@ server <- function(input, output, session) {
 
     # check if at least 2 tree files are present and if rooting other than midpoint is selected. Throw error if not.
     validate(
-      need(length(input$whichtree) > 1, "Provide tree files from at least 2 chains to display differences between consensus trees."),
-      need(!("<Midpoint>" %in% outgroup), "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
+      need(length(input$whichtree) > 1, 
+           message = "Provide tree files from at least 2 chains to display differences between consensus trees."),
+      need(!("<Midpoint>" %in% outgroup), 
+           message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root.")
     )
 
 
@@ -1010,7 +1031,7 @@ server <- function(input, output, session) {
 
   # finally, render this plot with spinner
   output$differencePlot.ui <- renderUI({
-    withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
+    shinycssloaders::withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
   })
 
 
@@ -1096,7 +1117,8 @@ server <- function(input, output, session) {
         legend.text = element_text(size = 12 * treescalefactor()),
         strip.text = element_text(size = 14 * treescalefactor(), face = "bold")
       ) +
-      scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"))
+      scale_color_manual(values = c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", 
+                                    "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"))
 
 
     # call plot
@@ -1110,7 +1132,8 @@ server <- function(input, output, session) {
 
   output$rfPlot.ui <- renderUI({
     req(treefile$datapath)
-    withSpinner(plotOutput("rfPlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
+    shinycssloaders::withSpinner(plotOutput("rfPlot", height = treeheight(), width = treewidth()), 
+                                 color = "#2C4152", size = 0.5)
   })
 
   # create download button for plot
@@ -1118,14 +1141,14 @@ server <- function(input, output, session) {
     filename = "RFplot.pdf",
     content = function(file3) {
       pdf(file3, height = input$height / 144, width = input$width / 72)
-      grid.arrange(rP(), ncol = 1)
+      gridExtra::grid.arrange(rP(), ncol = 1)
       dev.off()
     }
   )
 
 
   #| # Tab 5 (Bipartition support) -----
-  
+
   # Tab 5 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group.
 
   # Picker input to chose which taxa to check (similar to highlight color choser)
@@ -1148,7 +1171,7 @@ server <- function(input, output, session) {
   })
 
   # Selection of taxa
-  selectedtax <- eventReactive( input$check, {
+  selectedtax <- eventReactive(input$check, {
     req(treefile$datapath)
 
     # Use taxa from inputpicker if nothing is entered into the text field
@@ -1158,10 +1181,10 @@ server <- function(input, output, session) {
 
     # Use taxa from text field and overwrite any potantially selected taxa in the picker
     if (input$bptext != "") {
-      selectedtax <- as.character(str_split(input$bptext, "\n", simplify = TRUE))
+      selectedtax <- as.character(stringr::str_split(input$bptext, "\n", simplify = TRUE))
       selectedtax <- unique(selectedtax[selectedtax != ""]) # remove empty lines and multiply selected taxa
     }
-    
+
     selectedtax
   })
 
@@ -1169,12 +1192,14 @@ server <- function(input, output, session) {
   # Count support for selected bipartitions
   bpsupport <- reactive({
     req(alltrees())
-    
+
     validate(
-      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
-      need(length(intersect(selectedtax(), tipnames())) == length(selectedtax()), "Not all taxon name(s) are present in tree. Please check.")
+      need(length(selectedtax()) > 1, 
+           message = "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
+      need(length(intersect(selectedtax(), tipnames())) == length(selectedtax()), 
+           message = "Not all taxon name(s) are present in tree. Please check.")
     )
-    
+
     if (length(alltrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
@@ -1185,29 +1210,35 @@ server <- function(input, output, session) {
       # get trees
       trees <- alltrees()[[i]]
       trees <- trees[(input$conburnin + 1):length(trees)]
-      if (i == 1){
+      if (i == 1) {
         treesall <- trees
       }
-      else{ treesall <- c(treesall, trees) }
+      else {
+        treesall <- c(treesall, trees)
+      }
     }
-    
+
     selectedtax <- selectedtax()
-    
-    
+
+
     # check if taxa from the list are monophyletic (for whole list of trees)
     bpcount <- vector()
-    bpcount <- foreach (i = 1:length(treesall), .packages = "ape", combine = c, .inorder = FALSE) %dopar% {
+    bpcount <- foreach(i = 1:length(treesall), 
+                       .packages = "ape", 
+                       combine = c, 
+                       .inorder = FALSE) %dopar% {
       is.monophyletic(treesall[[i]], selectedtax())
     }
 
     # count number of "TRUE"
     monotrue <- sum(unlist(bpcount))
     monotrue <- as.numeric(monotrue)
-    
+
     # summarize results in list
     bpsupport <- list(
       absolute = monotrue, # in how many trees is the group monophyletic
-      relative = formatC(monotrue / length(treesall) * 100, digits = 2, format = "f"), # in percent
+      relative = formatC(monotrue / length(treesall) * 100, 
+                         digits = 2, format = "f"), # in percent
       total = length(bpcount) # how many trees were analysed
     )
 
@@ -1218,8 +1249,10 @@ server <- function(input, output, session) {
     req(treefile$datapath)
     req(selectedtax())
     validate(
-      need(length(selectedtax()) > 1, "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
-      need(selectedtax() %in% unlist(tipnames()), "Taxon name(s) not in tree file. Please check.")
+      need(length(selectedtax()) > 1, 
+           message = "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."),
+      need(selectedtax() %in% unlist(tipnames()), 
+           message = "Taxon name(s) not in tree file. Please check.")
     )
 
     # Print result as HTML formatted text
@@ -1312,13 +1345,14 @@ server <- function(input, output, session) {
 
     # install if not present
     validate(
-      need("rwty" %in% rownames(installed.packages()), message = "\nPackage rwty not found! Please install.")
+      need("rwty" %in% rownames(installed.packages()), 
+           message = "\nPackage rwty not found! Please install.")
     )
 
     library(rwty)
 
     # set number of processors fo rwty calculations
-    rwty.processors <<- input$ncores
+    rwty.processors <- input$ncores
 
     # set theme for all rwty plots
     theme_rwty <-
@@ -1331,7 +1365,7 @@ server <- function(input, output, session) {
         title = element_text(size = 14 * treescalefactor()),
         strip.text = element_text(size = 12 * treescalefactor(), face = "bold")
       )
-    
+
     # Autocorrelation
     if (input$rwtytype == "Autocorrelation") {
       autocorplot <- makeplot.autocorr(rwtytrees())

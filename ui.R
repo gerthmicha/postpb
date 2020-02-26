@@ -1,22 +1,3 @@
-# libraries
-library(coda)
-library(distory)
-library(doParallel)
-library(dplyr)
-library(DT)
-library(ggplot2)
-library(foreach)
-library(gridExtra)
-library(markdown)
-library(phytools)
-library(shiny)
-library(shinycssloaders)
-library(shinyjs)
-library(shinythemes)
-library(shinyWidgets)
-library(stringr)
-library(tidyr)
-
 # Define UI
 ui <- fluidPage(
   theme = shinytheme("flatly"), # defines theme of app

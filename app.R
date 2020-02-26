@@ -28,6 +28,7 @@ read.trace <- function(tracefile)({
 
 # apply thinning and burnin to trace files 
 prep.trace <- function(trace) {
+  trace <- as_tibble(trace)
   # rename all first columns as 'iter'
   colnames(trace)[1] <- "iter"
   # apply thinning
