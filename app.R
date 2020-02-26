@@ -222,6 +222,24 @@ read.treefiles <- function(treefile){
   return(treelist)
 }
 
+# combine all trees into single multiphylo object
+combine.trees <- function(alltrees){
+  treesall <- list()
+  class(treesall) <- "multiPhylo"
+  for (i in 1:length(alltrees)) {
+    # get trees
+    trees <- alltrees[[i]]
+    trees <- trees[(input$conburnin + 1):length(trees)]
+    if (length(treesall) >= 1) {
+      treesall <- c(treesall, trees)
+    }
+    if (length(treesall) == 0) {
+      treesall <- trees
+    }
+  }
+  return(treesall)
+}
+
 # function that plots 2 trees next to each other and highlights differences
 # modified from http://blog.phytools.org/
 phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
