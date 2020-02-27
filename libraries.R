@@ -1,5 +1,6 @@
 # all required libraries can be installed with 
-# install.packages(c( "distory",
+# install.packages(c( "colourpicker",
+#                     "distory",
 #                     "data.table",
 #                     "doParallel",
 #                     "dplyr",
@@ -14,7 +15,9 @@
 #                     "shinyWidgets"), 
 #                  dependencies = TRUE)
 
+
 # load libraries
+library(colourpicker)
 library(coda)
 library(data.table)
 library(distory)
