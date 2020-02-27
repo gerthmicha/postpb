@@ -513,23 +513,6 @@ server <- function(input, output, session) {
     )
   })
 
-  # # And another picker for another highlight
-  # output$highlight2 <- renderUI({
-  #   req(treefile$datapath)
-  #   pickerInput("highlight2",
-  #     label = HTML("Select taxa to highlight <font color=\"#ff7f00\">[orange]</font>"),
-  #     choices = tipnames(),
-  #     multiple = TRUE,
-  #     options = list(
-  #       `selected-text-format` = "count > 2",
-  #       `count-selected-text` = "{0} taxa",
-  #       `actions-box` = TRUE,
-  #       `live-search` = TRUE
-  #     ),
-  #     inline = FALSE
-  #   )
-  # })
-
   # PDF download handle for tree plots
   output$downloadtreePDF <- downloadHandler(
     filename = "treeplots.pdf",
