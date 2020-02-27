@@ -500,7 +500,7 @@ server <- function(input, output, session) {
   output$highlight <- renderUI({
     req(treefile$datapath)
     pickerInput("highlight",
-      label = HTML("Select taxa to highlight <font color=\"#377eb8\">[blue]</font>"),
+      label = HTML("Select taxa to highlight"),
       choices = tipnames(),
       multiple = TRUE,
       options = list(
@@ -513,22 +513,22 @@ server <- function(input, output, session) {
     )
   })
 
-  # And another picker for another highlight
-  output$highlight2 <- renderUI({
-    req(treefile$datapath)
-    pickerInput("highlight2",
-      label = HTML("Select taxa to highlight <font color=\"#ff7f00\">[orange]</font>"),
-      choices = tipnames(),
-      multiple = TRUE,
-      options = list(
-        `selected-text-format` = "count > 2",
-        `count-selected-text` = "{0} taxa",
-        `actions-box` = TRUE,
-        `live-search` = TRUE
-      ),
-      inline = FALSE
-    )
-  })
+  # # And another picker for another highlight
+  # output$highlight2 <- renderUI({
+  #   req(treefile$datapath)
+  #   pickerInput("highlight2",
+  #     label = HTML("Select taxa to highlight <font color=\"#ff7f00\">[orange]</font>"),
+  #     choices = tipnames(),
+  #     multiple = TRUE,
+  #     options = list(
+  #       `selected-text-format` = "count > 2",
+  #       `count-selected-text` = "{0} taxa",
+  #       `actions-box` = TRUE,
+  #       `live-search` = TRUE
+  #     ),
+  #     inline = FALSE
+  #   )
+  # })
 
   # PDF download handle for tree plots
   output$downloadtreePDF <- downloadHandler(
@@ -618,129 +618,115 @@ server <- function(input, output, session) {
 
   #| TREE PLOTS ------------------------------
 
-  #| # Tab 1 (Trees) ----- 
-
-  # Slider that determines the tree generation currently displyed
-  output$treegens <- renderUI({
-    req(treefile$datapath)
-    sliderInput("generation", "Tree generation",
-      min = 1,
-      max = ngentree(),
-      value = 1,
-      step = 1,
-      ticks = FALSE,
-      animate = animationOptions(
-        interval = 1000, # this adds a button that animates an iteration through all tree generations
-        loop = TRUE,
-        # this make the buttons pretty
-        playButton = tags$button("PLAY", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold"),
-        pauseButton = tags$button("PAUSE", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold")
+  #| Interactive features ----- 
+  
+  # Enable interactive selection of taxon selection for rooting
+  # first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
+  # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
+  tipDF <- reactive({
+    req(input$plot_brush)
+    
+    # which edges belong to tips?
+    is_tip <- roottree()$edge[, 2] <= length(roottree()$tip.label)
+    
+    # order according
+    ordered_tips <- roottree()$edge[is_tip, 2]
+    
+    # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
+    tips <- as.data.frame(roottree()$tip.label[ordered_tips])
+    tiporder <- as.data.frame(1:length(roottree()$tip.label))
+    tipDF <- as.data.frame(cbind(tips, tiporder))
+    names(tipDF) <- c("tips", "tiporder")
+    
+    # call dataframe
+    tipDF
+  })
+  
+  # get the names of selected tips from the interactive 'brush' click+drag
+  # important here are only the ymin & ymax values: ape plots each tree from 0 (bottom) to Ntaxa, and difference between taxa is always 1
+  conroot <- reactive({
+    req(input$plot_brush)
+    # get names
+    tipDF <- tipDF() %>%
+      filter(tiporder >= input$plot_brush$ymin) %>%
+      filter(tiporder <= input$plot_brush$ymax)
+    
+    as.character(tipDF$tips)
+  })
+  
+  # Once selected, use popup to decide what to do with selected taxa (highlight or rooting)
+  observeEvent( input$plot_brush ,{
+    showModal(modalDialog(
+      title = NULL,
+      HTML(paste("You have selected ", length(conroot()), " taxa\n",  "<br><br>")),
+      align = "center",
+      actionButton("rootbutton", HTML("Re-root with<br>selection"), 
+                   width = "150px",
+                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
+      actionButton("colbutton", 
+                   HTML("Higlight<br>selection"),
+                   width = "150px",
+                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
+      easyClose = TRUE,
+      footer = tagList(
+        modalButton("Cancel")
       )
     )
-  })
-
-  # plot 1 is for single tree plots per generation
-  output$treeplot <- renderPlot({
-    if (length(completetrees()) > 1) {
-      req(length(input$whichtree) > 0)
-    }
-
-    # require these for interactive rooting
-    input$reroot
-    input$midpoint
-    input$unroot
-
-    # get outgroup from ui, but isolate so that rerooting is only done when button is pressed
-    isolate(outgroup <- og$outgroup)
-
-    # change plot layout to 2 columns if 2 treefiles are present
-    if (length(alltrees()) == 2) {
-      par(mfrow = c(1, 2))
-    }
-
-    # 3 columns if 3 treefiles are present
-    if (length(alltrees()) == 3) {
-      par(mfrow = c(1, 3))
-    }
-
-    # and 2x2 for 4 treefiles
-    if (length(alltrees()) == 4) {
-      par(mfrow = c(2, 2))
-    }
-
-    # plot all trees in loop
-    for (i in 1:length(alltrees())) {
-
-      # get trees
-      trees <- alltrees()[[i]]
-
-      # unroot tree if no root was chosen
-      if ("<None>" %in% outgroup) {
-        currtree <- unroot(trees[[input$generation]])
-      }
-
-      # midpoint root if chosen
-      if ("<Midpoint>" %in% outgroup) {
-        currtree <- phytools::midpoint.root(trees[[input$generation]])
-      }
-
-      # root with outgroup if chosen
-      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
-        validate(
-          need(is.monophyletic(trees[[input$generation]], outgroup), "The specified outgroup is not monophyletic!")
-        )
-        currtree <- root(trees[[input$generation]],
-          outgroup = outgroup,
-          resolve.root = TRUE
-        )
-      }
-
-      # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
-      concolors1 <- currtree$tip.label %in% input$highlight
-      concolors2 <- currtree$tip.label %in% input$highlight2
-      concolvec <- rep("black", length = length(currtree$tip.label))
-      concolvec[which(concolors1 == TRUE)] <- "#377eb8"
-      concolvec[which(concolors2 == TRUE)] <- "#ff7f00"
-      concolvec[which(concolors1 == TRUE & concolors2 == TRUE)] <- "#4daf4a"
-
-      # Plot
-      plot(ladderize(currtree),
-        main = paste(input$whichtree[i], "iteration", input$generation),
-        cex = input$treecex,
-        cex.main = input$treecex * 1.1,
-        edge.width = input$treecex,
-        align.tip.label = treeopts()[1],
-        use.edge.length = treeopts()[2],
-        label.offset = 0.01,
-        font = treefont(),
-        tip.color = concolvec
-      )
-      add.scale.bar(lwd = input$treecex)
-    }
-
-    # Copy plot to device
-    dev.copy2pdf(
-      file = ".treeplot.pdf",
-      height = treeheight() / 72,
-      width = treewidth() / 72
     )
   })
-
-
-  # render the plot with spinner & using the height and widths from ui
-  output$treePlot.ui <- renderUI({
-    req(treefile$datapath)
-    withSpinner(plotOutput("treeplot",
-      height = treeheight(),
-      width = treewidth()
-    ),
-    color = "#2C4152",
-    size = 0.5
+  
+  # If any of the buttons is pressed, close popup
+  observeEvent(input$rootbutton, {
+    removeModal()
+  })
+  observeEvent(input$colbutton, {
+    removeModal()
+  })
+  
+  # With this selection made, update selection in outgroup pickerInput...
+  observeEvent(input$rootbutton, {
+    updatePickerInput(session, "outgroup",
+                      label = "Select outgroup(s) for rooting",
+                      choices = c(tipnames()),
+                      selected = conroot()
     )
+    session$resetBrush("plot_brush")
+    og$outgroup <- conroot()
+  })
+  
+  # ... or highlight pickerInput
+  observeEvent(input$colbutton, {
+    updatePickerInput(session, "highlight",
+                      choices = c(tipnames()),
+                      selected = unique(conroot())
+    )
+    session$resetBrush("plot_brush")
+  })
+  
+  # create reactive values for highlighting
+  highcol <- reactiveValues()
+  
+  # When rooted tree is first plotted, create a dataframe with tip names and colors (here: all black) 
+  observeEvent(roottree(), once = TRUE, {
+    highcol$df = as_tibble(cbind( roottree()$tip.label, rep("black", length( roottree()$tip.label))))
+  })
+  
+  # If taxa are selected, update the colors for the selected taxa in the dataframe
+  observeEvent(input$highlight, {
+    highcol$df <- highcol$df  %>% 
+      mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
+  })
+  
+  # Same when colors are changed
+  observeEvent(input$high1, {
+    req(input$highlight)
+    highcol$df <- highcol$df  %>% 
+      mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
   })
 
-  #| # Tab 2 (Consensus) ----- 
-  # Plot 2 is a consensus plot
+  
+  #| # Tab 1 (Consensus) ----- 
+  # Plot 1 is a consensus plot
 
   # first calculate the tree
   contree <- reactive({
@@ -789,7 +775,8 @@ server <- function(input, output, session) {
     contree
   })
 
- roottree <- reactive({
+  # root the tree
+  roottree <- reactive({
     req(contree())
     roottree <- contree()
     
@@ -829,13 +816,12 @@ server <- function(input, output, session) {
  
   # now render consensus plot
   output$consensusPlot <- renderPlot({
+    req(highcol$df)
     # colorvector again
-    concolors1 <- roottree()$tip.label %in% input$highlight
-    concolors2 <- roottree()$tip.label %in% input$highlight2
-    concolvec <- rep("black", length = length(roottree()$tip.label))
-    concolvec[which(concolors1 == TRUE)] <- "#377eb8"
-    concolvec[which(concolors2 == TRUE)] <- "#ff7f00"
-    concolvec[which(concolors1 == TRUE & concolors2 == TRUE)] <- "#4daf4a"
+    col.df <- highcol$df %>% 
+      arrange(factor(V1, levels = roottree()$tip.label))
+    
+    concolvec <- as.vector(col.df$V2)
 
     treetot <- sum(unlist(lapply(alltrees(), length)))
 
@@ -898,107 +884,125 @@ server <- function(input, output, session) {
     }
   )
 
-  # Enable interactive selection of taxon selection for rooting
-  # first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
-  # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
-  tipDF <- reactive({
-    req(input$plot_brush)
-    
-    # which edges belong to tips?
-    is_tip <- roottree()$edge[, 2] <= length(roottree()$tip.label)
-    
-    # order according
-    ordered_tips <- roottree()$edge[is_tip, 2]
-
-    # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
-    tips <- as.data.frame(roottree()$tip.label[ordered_tips])
-    tiporder <- as.data.frame(1:length(roottree()$tip.label))
-    tipDF <- as.data.frame(cbind(tips, tiporder))
-    names(tipDF) <- c("tips", "tiporder")
-
-    # call dataframe
-    tipDF
-  })
-
-  # get the names of selected tips from the interactive 'brush' click+drag
-  # important here are only the ymin & ymax values: ape plots each tree from 0 (bottom) to Ntaxa, and difference between taxa is always 1
-  conroot <- reactive({
-    req(input$plot_brush)
-    # get names
-    tipDF <- tipDF() %>%
-      filter(tiporder >= input$plot_brush$ymin) %>%
-      filter(tiporder <= input$plot_brush$ymax)
-
-    as.character(tipDF$tips)
-  })
-
-  # Once selected, use popup to decide what to do with selected taxa (highlight or rooting)
+  #| # Tab 2 (Trees) ----- 
   
-  observeEvent( input$plot_brush ,{
-    showModal(modalDialog(
-      title = NULL,
-      HTML(paste("You have selected ", length(conroot()), " taxa\n",  "<br><br>")),
-      align = "center",
-      actionButton("rootbutton", HTML("Re-root with<br>selection"), 
-                   width = "150px",
-                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
-      actionButton("colbutton", 
-                   HTML("<font color=\"#377eb8\">Colour selection<br>Blue</font>"),
-                   width = "150px",
-                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
-      actionButton("colbutton2", 
-                   HTML("<font color=\"#ff7f00\">Colour selection<br>Orange</font>"), 
-                   width = "150px",
-                   style = "border:2px solid; border-radius: 4px; margin:5px; background-color:white; color:black; font-weight:bold"),
-      easyClose = TRUE,
-      footer = tagList(
-        modalButton("Cancel")
+  # Slider that determines the tree generation currently displyed
+  output$treegens <- renderUI({
+    req(treefile$datapath)
+    sliderInput("generation", "Tree generation",
+                min = 1,
+                max = ngentree(),
+                value = 1,
+                step = 1,
+                ticks = FALSE,
+                animate = animationOptions(
+                  interval = 1000, # this adds a button that animates an iteration through all tree generations
+                  loop = TRUE,
+                  # this make the buttons pretty
+                  playButton = tags$button("PLAY", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold"),
+                  pauseButton = tags$button("PAUSE", style = "border:2px solid; border-radius: 4px; margin:5px; padding:2px 10px; font-size:90%; background-color:white; color:black; font-weight:bold")
+                )
+    )
+  })
+  
+  # plot 1 is for single tree plots per generation
+  output$treeplot <- renderPlot({
+    if (length(completetrees()) > 1) {
+      req(length(input$whichtree) > 0)
+    }
+    
+    # require these for interactive rooting
+    input$reroot
+    input$midpoint
+    input$unroot
+    
+    # get outgroup from ui, but isolate so that rerooting is only done when button is pressed
+    isolate(outgroup <- og$outgroup)
+    
+    # change plot layout to 2 columns if 2 treefiles are present
+    if (length(alltrees()) == 2) {
+      par(mfrow = c(1, 2))
+    }
+    
+    # 3 columns if 3 treefiles are present
+    if (length(alltrees()) == 3) {
+      par(mfrow = c(1, 3))
+    }
+    
+    # and 2x2 for 4 treefiles
+    if (length(alltrees()) == 4) {
+      par(mfrow = c(2, 2))
+    }
+    
+    # plot all trees in loop
+    for (i in 1:length(alltrees())) {
+      
+      # get trees
+      trees <- alltrees()[[i]]
+      
+      # unroot tree if no root was chosen
+      if ("<None>" %in% outgroup) {
+        currtree <- unroot(trees[[input$generation]])
+      }
+      
+      # midpoint root if chosen
+      if ("<Midpoint>" %in% outgroup) {
+        currtree <- phytools::midpoint.root(trees[[input$generation]])
+      }
+      
+      # root with outgroup if chosen
+      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
+        validate(
+          need(is.monophyletic(trees[[input$generation]], outgroup), "The specified outgroup is not monophyletic!")
+        )
+        currtree <- root(trees[[input$generation]],
+                         outgroup = outgroup,
+                         resolve.root = TRUE
+        )
+      }
+      
+      # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
+      col.df <- highcol$df %>% 
+        arrange(factor(V1, levels = currtree$tip.label))
+      concolvec <- as.vector(col.df$V2)
+      
+      # Plot
+      plot(ladderize(currtree),
+           main = paste(input$whichtree[i], "iteration", input$generation),
+           cex = input$treecex,
+           cex.main = input$treecex * 1.1,
+           edge.width = input$treecex,
+           align.tip.label = treeopts()[1],
+           use.edge.length = treeopts()[2],
+           label.offset = 0.01,
+           font = treefont(),
+           tip.color = concolvec
       )
-    )
+      add.scale.bar(lwd = input$treecex)
+    }
+    
+    # Copy plot to device
+    dev.copy2pdf(
+      file = ".treeplot.pdf",
+      height = treeheight() / 72,
+      width = treewidth() / 72
     )
   })
   
-  # If any of the buttons is pressed, close popup
-  observeEvent(input$rootbutton, {
-    removeModal()
-  })
-  observeEvent(input$colbutton, {
-    removeModal()
-  })
-  observeEvent(input$colbutton2, {
-    removeModal()
+  
+  # render the plot with spinner & using the height and widths from ui
+  output$treePlot.ui <- renderUI({
+    req(treefile$datapath)
+    withSpinner(plotOutput("treeplot",
+                           height = treeheight(),
+                           width = treewidth()
+    ),
+    color = "#2C4152",
+    size = 0.5
+    )
   })
   
-  # With this selection made, update selection in outgroup pickerInput...
-  observeEvent(input$rootbutton, {
-    updatePickerInput(session, "outgroup",
-      label = "Select outgroup(s) for rooting",
-      choices = c(tipnames()),
-      selected = conroot()
-    )
-    session$resetBrush("plot_brush")
-    og$outgroup <- conroot()
-  })
-
-  # ... or color taxa in blue ...
-  observeEvent(input$colbutton, {
-    updatePickerInput(session, "highlight",
-                      choices = c(tipnames()),
-                      selected = unique(c(input$highlight, conroot()))
-    )
-    session$resetBrush("plot_brush")
-  })
   
-  # ... or orange
-  observeEvent(input$colbutton2, {
-    updatePickerInput(session, "highlight2",
-                      choices = c(tipnames()),
-                      selected = unique(c(input$highlight2, conroot()))
-    )
-    session$resetBrush("plot_brush")
-  })
-  
-
   #| # Tab 3 (Difference) ----- 
   # Plot 3 shows 2 consensus plots with comparison
 
@@ -1041,14 +1045,10 @@ server <- function(input, output, session) {
       contrees[[i]] <- contree
 
       # colorvector
-      colors1 <- contree$tip.label %in% input$highlight
-      colors2 <- contree$tip.label %in% input$highlight2
-      colvec <- rep("black", length = length(contree$tip.label))
-      colvec[which(colors1 == TRUE)] <- "#377eb8"
-      colvec[which(colors2 == TRUE)] <- "#ff7f00"
-      colvec[which(colors1 == TRUE & colors2 == TRUE)] <- "#4daf4a"
-
-      colvecs[[i]] <- colvec
+      
+      col.df <- highcol$df %>% 
+        arrange(factor(V1, levels = contree$tip.label))
+      colvecs[[i]] <- as.vector(col.df$V2)
     }
 
 
