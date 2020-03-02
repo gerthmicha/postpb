@@ -167,7 +167,7 @@ ui <- fluidPage(
             div(style="display: inline-block;vertical-align:top; width: 450px;", uiOutput("highlight")),
             div(style="display: inline-block;vertical-align:top; width: 100px;", conditionalPanel(
               condition = "output.highlight",
-              colourInput("high1", "Colour", value = "#2196F3", palette = "limited" , allowedCols = c("#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", 
+              colourpicker::colourInput("high1", "Colour", value = "#2196F3", palette = "limited" , allowedCols = c("#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", 
                                                                                                       "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50",
                                                                                                       "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800", 
                                                                                                       "#ff5722", "#795548", "#9e9e9e", "#607d8b", "#ffffff", "#000000")
