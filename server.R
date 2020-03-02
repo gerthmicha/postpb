@@ -375,7 +375,7 @@ server <- function(input, output, session) {
     }
 
     if (length(completetrees()) > 1 & !is.null(input$whichtree)) {
-      alltrees <- completetrees()[which(treenames() %in% input$whichtree)]
+     alltrees <- completetrees()[which(treenames() %in% input$whichtree)]
     }
 
     if (is.null(input$whichtree) & length(completetrees()) > 1) {
@@ -401,7 +401,8 @@ server <- function(input, output, session) {
 
   # determine number of tree generations (smallest number from all files)
   ngentree <- reactive({
-    treegen <- min(unlist(lapply(alltrees(), length)))
+    input$treefile
+    isolate (treegen <- min(unlist(lapply(alltrees(), length))))
     treegen
   })
 
@@ -496,6 +497,7 @@ server <- function(input, output, session) {
     )
   })
   
+ 
   # Similar picker input to chose which taxa to highlight
   output$highlight <- renderUI({
     req(treefile$datapath)
@@ -560,7 +562,13 @@ server <- function(input, output, session) {
     og$outgroup <- input$outgroup
   })
 
+  # observe as new tree files are being read in
+  # Also reset outgroups when new tree files are loaded 
+  observeEvent(completetrees(), {
+    og$outgroup <- "<None>"
+  })
 
+  
   # tree labels
   treefont <- reactive({
     treefont <- vector(mode = "numeric")
@@ -688,12 +696,15 @@ server <- function(input, output, session) {
   
   # create reactive values for highlighting
   highcol <- reactiveValues()
-  
-  # When rooted tree is first plotted, create a dataframe with tip names and colors (here: all black) 
-  observeEvent(roottree(), once = TRUE, {
-    highcol$df = as_tibble(cbind( roottree()$tip.label, rep("black", length( roottree()$tip.label))))
+ 
+  # Whenever new tree files are loaded, reset color vector
+  observeEvent(completetrees(), ignoreInit = FALSE, { 
+    # When rooted tree is first plotted, create a dataframe with tip names and colors (here: all black)
+    # Only do this once
+    observeEvent(roottree(), once = T, {
+      highcol$df = as_tibble(cbind( roottree()$tip.label, rep("black", length( roottree()$tip.label))))
+    })
   })
-  
   # If taxa are selected, update the colors for the selected taxa in the dataframe
   observeEvent(input$highlight, {
     highcol$df <- highcol$df  %>% 
@@ -707,20 +718,26 @@ server <- function(input, output, session) {
       mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
   })
 
+  # When rooted tree is first plotted, create a dataframe with tip names and colors (here: all black)
+  
+
+
+   
   
   #| # Tab 1 (Consensus) ----- 
   # Plot 1 is a consensus plot
 
   # first calculate the tree
   contree <- reactive({
-    req(treefile$datapath)
+    req(length(alltrees()) >= 1)
+    
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
 
     # combine trees from all files into single multiphylo object
     treesall <- combine.trees(alltrees())
-    
+
     # get consensus branch lengths
     contree <- phytools::consensus.edges(treesall, method = "least.squares")
 
