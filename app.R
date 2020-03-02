@@ -140,9 +140,9 @@ render.traceplots <- function(traceplot){
 }
 
 # calculate summary statistics
-sum.stats <- function(traceDF){
-  
-} 
+# sum.stats <- function(traceDF){
+#   
+# } 
   
   
 # style data table
@@ -224,6 +224,7 @@ read.treefiles <- function(treefile){
 
 # combine all trees into single multiphylo object
 combine.trees <- function(alltrees){
+  req(treefile$datapath)
   treesall <- list()
   class(treesall) <- "multiPhylo"
   for (i in 1:length(alltrees)) {
