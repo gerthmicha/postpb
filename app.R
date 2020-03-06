@@ -68,7 +68,7 @@ set.trace.colors <- function(tracedata){
 # Trace Plot
 xyplot <- function(traceDF){
   tP1 <- ggplot(traceDF, aes(y = value, x = iter, fill = trace)) +
-    facet_wrap(~variable, scales = "free", ncol = 2) +
+    facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_color_manual(values = tracecolors())
   # This adds points to XY plos only if this option was chosen in checkbox
   if ("points" %in% input$traceplotstyle) {
@@ -84,7 +84,7 @@ xyplot <- function(traceDF){
 # Violin plot
 violinplot <- function(traceDF){
   vP1 <- ggplot(traceDF, aes(y = value, x = trace, fill = trace)) +
-    facet_wrap(~variable, scales = "free", ncol = 2) +
+    facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_fill_manual(values = tracecolors()) +
     guides(scale_color_manual())
   # Users can add Boxplots and/or datapoints to violin plot
@@ -120,7 +120,7 @@ violinplot <- function(traceDF){
 densityplot <- function(traceDF){
   dP1 <- ggplot(traceDF) +
     geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0) +
-    facet_wrap(~variable, scales = "free", ncol = 2) +
+    facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_fill_manual(values = tracecolors()) +
     tracetheme() + theme(axis.text.y = element_blank())  
   return(dP1)

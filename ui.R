@@ -28,9 +28,10 @@ ui <- fluidPage(
           hr(),
           uiOutput("burnin"),
           uiOutput("whichchain"),
-          numericInput("prop", "Consider every Nth iteration",
-            value = 10,
-            width = "30%"
+          flowLayout(numericInput("prop", "Consider every Nth iteration",
+                           value = 10),
+                     numericInput("facetcol", "Number of columns in plot",
+                       value = 2)
           ),
           sliderInput("cex", "Scaling factor for points and lines",
             min = 0.1,
