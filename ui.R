@@ -7,7 +7,9 @@ ui <- fluidPage(
   # Layout of app: 1 navbar with 3 tab panels. The first 2 tab panels have 1 sidebar + 1 main display (including multiple tabs each)
   # Final tab panel is markdown help file
   navbarPage(
-    HTML("postpb"),
+    windowTitle = "postpb", 
+    title = div(style = "font-size: 30px;  line-height: 18px; padding-right: 40px",
+    HTML("<i><b>postpb</b></i>")),
     # first tab panel for trace analyses
     tabPanel(
       "Parameters",
