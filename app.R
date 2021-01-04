@@ -2,8 +2,8 @@
 # read all tracefiles
 get.ngen <- function(tracefile){
   tracefilelist <- lapply(tracefile$datapath, data.table::fread,
-                            sep = "\t",
-                            header = TRUE
+                          sep = "\t",
+                          header = TRUE
   )
   # determine shortest trace file
   ngen <- min(unlist(lapply(tracefilelist, nrow)))
@@ -13,8 +13,8 @@ get.ngen <- function(tracefile){
 # read and re-format the trace files
 read.trace <- function(tracefile)({
   tracefilelist <- lapply(tracefile$datapath, data.table::fread,
-                            sep = "\t",
-                            header = TRUE,
+                          sep = "\t",
+                          header = TRUE,
   )
   # add chain name as parameter
   tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
@@ -22,13 +22,13 @@ read.trace <- function(tracefile)({
   tracefilelist <- lapply(tracefilelist, prep.trace)
   # combine all into 1 dataframe
   traceDF <- do.call("rbind", tracefilelist)
-  traceDF <- gather(traceDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
+  traceDF <- tidyr::gather(traceDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
   return(traceDF)
 })
 
 # apply thinning and burnin to trace files 
 prep.trace <- function(trace) {
-  trace <- as_tibble(trace)
+  trace <- tibble::as_tibble(trace)
   # rename all first columns as 'iter'
   colnames(trace)[1] <- "iter"
   # apply thinning
@@ -129,45 +129,40 @@ densityplot <- function(traceDF){
 # render plots
 render.traceplots <- function(traceplot){
   traceplot.ui <- renderUI({
-    withSpinner(plotOutput(traceplot,
-                                   height = plotheight(),
-                                   width = plotwidth()
-  ),
-  color = "#2C4152", size = 0.5
-  )
+    shinycssloaders::withSpinner(plotOutput(traceplot,
+                                            height = plotheight(),
+                                            width = plotwidth()
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
   return(traceplot.ui)
 }
 
-# calculate summary statistics
-# sum.stats <- function(traceDF){
-#   
-# } 
-  
-  
+
 # style data table
 # call dataframe with DT::datatable to enable nice formatting
 style.table <- function(table){
-  styled_table <- datatable(table,
-                      selection = "none",
-                      extensions = "Buttons",
-                      options = list(
-                        searching = FALSE,
-                        ordering = FALSE,
-                        orientation = "landscape",
-                        pageLength = nrow(table),
-                        dom = "Bt",
-                        buttons = c("copy", "csv", "print")
-                      )
+  styled_table <- DT::datatable(table,
+                                selection = "none",
+                                extensions = "Buttons",
+                                options = list(
+                                  searching = FALSE,
+                                  ordering = FALSE,
+                                  orientation = "landscape",
+                                  pageLength = nrow(table),
+                                  dom = "Bt",
+                                  buttons = c("copy", "csv", "print")
+                                )
   ) %>%
-    formatStyle("ESS", color = styleInterval(99.99, c("red", "black"))) %>%
-    formatStyle(names(table)[grep("Geweke", names(table))], color = styleInterval(2, c("black", "red"))) %>%
-    formatStyle(0, fontWeight = "bold")
+    DT::formatStyle("ESS", color = styleInterval(99.99, c("red", "black"))) %>%
+    DT::formatStyle(names(table)[grep("Geweke", names(table))], color = styleInterval(2, c("black", "red"))) %>%
+    DT::formatStyle(0, fontWeight = "bold")
   
   if (length(unique(traceDF()$trace)) > 1) {
     styled_table <- styled_table %>%
-      formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c("black", "red"))) %>%
-      formatStyle("Discrepancy", color = styleInterval(0.3, c("black", "red")))
+      DT::formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c("black", "red"))) %>%
+      DT::formatStyle("Discrepancy", color = styleInterval(0.3, c("black", "red")))
   }
   return(styled_table)
 }
@@ -183,7 +178,7 @@ read.treefiles <- function(treefile){
   }
   
   if (example$click == 2) {
-   treeformat <- "Nexus (e.g., MrBayes)"
+    treeformat <- "Nexus (e.g., MrBayes)"
   }
   
   if (example$click == 0) {
@@ -195,7 +190,6 @@ read.treefiles <- function(treefile){
   
   for (i in 1:length(treefile$datapath)) {
     treepath <- treefile$datapath[i]
-    
     if (treeformat == "Newick (e.g., Phylobayes)") {
       firstline <- readLines(treepath, n = 1)
       validate(
@@ -216,15 +210,22 @@ read.treefiles <- function(treefile){
       )
       treelist[[i]] <- ape::read.nexus(treepath)
     }
-    # thin treelist
-    treelist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by = input$treethin)]
   }
   return(treelist)
+}
+
+thin.trees <- function(treelist){
+  thinlist <- list()
+  for (i in 1:length(treelist)){
+    thinlist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by = treethin())]
+  }
+  return(thinlist)
 }
 
 # combine all trees into single multiphylo object
 combine.trees <- function(alltrees){
   req(treefile$datapath)
+  req(length(alltrees()) >= 1)
   treesall <- list()
   class(treesall) <- "multiPhylo"
   for (i in 1:length(alltrees)) {
@@ -254,10 +255,7 @@ phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
   treeB.cs[uniqT2] <- "#FF1493"
   treeB.lw <- rep(input$treecex, dim(x$edge)[1])
   treeB.lw[uniqT2] <- input$treecex * 2
-  # par(mfrow = c(1, 2))
   plot(x, edge.color = treeA.cs, main = main1, tip.color = coltip1, edge.width = treeA.lw, align.tip.label = TRUE, ...)
   plot(y, edge.color = treeB.cs, main = main2, tip.color = coltip2, edge.width = treeB.lw, align.tip.label = TRUE, direction = "leftwards", ...)
   invisible()
 }
-
-
