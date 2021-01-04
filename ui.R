@@ -1,5 +1,6 @@
 # load libraries
 source("libraries.R", local = TRUE)
+tags$style(type="text/css", ".shiny-output-error { visibility: hidden; }", ".shiny-output-error:before { visibility: hidden; }" )
 
 # Define UI
 ui <- fluidPage(
@@ -9,49 +10,49 @@ ui <- fluidPage(
   navbarPage(
     windowTitle = "postpb", 
     title = div(style = "font-size: 30px;  line-height: 18px; padding-right: 40px",
-    HTML("<i><b>postpb</b></i>")),
+                HTML("<i><b>postpb</b></i>")),
     # first tab panel for trace analyses
     tabPanel(
       "Parameters",
       fluidRow(
         column(4, wellPanel( # the following defines the elements of the sidebar
           fileInput("tracefile", "Select trace files",
-            multiple = TRUE,
-            accept = c(".trace", ".p")
+                    multiple = TRUE,
+                    accept = c(".trace", ".p")
           ),
           div(style = "font-size: 10px; padding: 0px 0px; margin-top:-1em",
-            actionGroupButtons(c("exampletrace1", "exampletrace2", "exampletraceinf"), c("Load example 1", "Load example 2", "Info"),
-              status = "default",
-              size = "xs",
-              fullwidth = TRUE,
-              direction = "vertical"
-            )
+              actionGroupButtons(c("exampletrace1", "exampletrace2", "exampletraceinf"), c("Load example 1", "Load example 2", "Info"),
+                                 status = "default",
+                                 size = "xs",
+                                 fullwidth = TRUE,
+                                 direction = "vertical"
+              )
           ),
           hr(),
           uiOutput("burnin"),
           uiOutput("whichchain"),
           flowLayout(numericInput("prop", "Consider every Nth iteration",
-                           value = 10),
+                                  value = 10),
                      numericInput("facetcol", "Number of columns in plot",
-                       value = 2)
+                                  value = 2)
           ),
           sliderInput("cex", "Scaling factor for points and lines",
-            min = 0.1,
-            max = 10,
-            value = 1,
-            step = 0.1
+                      min = 0.1,
+                      max = 10,
+                      value = 1,
+                      step = 0.1
           ),
           sliderInput("height", "Height of plot in pixels",
-            min = 100,
-            max = 5000,
-            value = 1000,
-            step = 100
+                      min = 100,
+                      max = 5000,
+                      value = 1000,
+                      step = 100
           ),
           sliderInput("width", "Width of plot in pixels",
-            min = 100,
-            max = 5000,
-            value = 1000,
-            step = 100
+                      min = 100,
+                      max = 5000,
+                      value = 1000,
+                      step = 100
           ),
           hr(),
           conditionalPanel(
@@ -98,15 +99,15 @@ ui <- fluidPage(
             tabPanel(
               "Summary statistics",
               withSpinner(DT::dataTableOutput("table", width = "80%"),
-                color = "#2C4152", size = 0.5
+                          color = "#2C4152", size = 0.5
               ),
               conditionalPanel(
                 condition = "output.table",
                 br(),
                 useShinyjs(),
                 actionButton("explanation",
-                  "Toggle explanations",
-                  style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
+                             "Toggle explanations",
+                             style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
                 ),
                 hidden(div(id = "stats", includeMarkdown("stats.md")))
               )
@@ -135,8 +136,8 @@ ui <- fluidPage(
             conditionalPanel(
               "input.treefiletype == 'Newick (e.g., Phylobayes)' || input.treefiletype =='Nexus (e.g., MrBayes)'",
               fileInput("treefile", "Select tree files",
-                multiple = TRUE,
-                accept = c(".treelist", ".t")
+                        multiple = TRUE,
+                        accept = c(".treelist", ".t")
               )
             ),
             div(style = "font-size: 10px; padding: 0px 0px; margin-top:-1em",
@@ -151,19 +152,20 @@ ui <- fluidPage(
             hr(),
             uiOutput("conburnin"),
             uiOutput("whichtree"),
-            flowLayout(
-              uiOutput("ncores"),
-              numericInput("treethin", "Consider every Nth tree",
-                           value = 10)
+            fluidRow(
+              column(4, uiOutput("ncores")),
+              column(4, numericInput("treethin", "Sampling frequency",
+                                     value = 10)),
+              column(2, style = "margin-top: 25px;" , actionButton("recalc", "Apply"))
             ),
             uiOutput("outgroups"),
             conditionalPanel(
               condition = "output.outgroups",
               actionGroupButtons(c("reroot", "midpoint", "unroot"),
-                c("Reroot with outgroup", "Midpoint rooting", "Unroot"),
-                status = "primary",
-                size = "sm",
-                fullwidth = TRUE
+                                 c("Reroot with outgroup", "Midpoint rooting", "Unroot"),
+                                 status = "primary",
+                                 size = "sm",
+                                 fullwidth = TRUE
               )
             ),
             hr(),
@@ -176,9 +178,9 @@ ui <- fluidPage(
                                                         "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800", 
                                                         "#ff5722", "#795548", "#9e9e9e", "#607d8b", "#ffffff", 
                                                         "#000000")
-                          )
               )
-              ),
+            )
+            ),
             hr(),
             prettyCheckboxGroup(
               inputId = "treeopts",
@@ -198,28 +200,31 @@ ui <- fluidPage(
               icon = icon("check")
             ),
             sliderInput("treecex",
-              "Scaling factor for labels and lines",
-              min = 0.1,
-              max = 10,
-              value = 1,
-              step = 0.1
+                        "Scaling factor for labels and lines",
+                        min = 0.1,
+                        max = 10,
+                        value = 1,
+                        step = 0.1
             ),
             sliderInput("treeheight",
-              "Height of plot in pixels",
-              min = 100,
-              max = 5000,
-              value = 800,
-              step = 100
+                        "Height of plot in pixels",
+                        min = 100,
+                        max = 5000,
+                        value = 800,
+                        step = 100
             ),
             sliderInput("treewidth",
-              "Width of plot in pixels",
-              min = 100,
-              max = 5000,
-              value = 1000,
-              step = 100
+                        "Width of plot in pixels",
+                        min = 100,
+                        max = 5000,
+                        value = 1000,
+                        step = 100
             ),
             conditionalPanel(
               condition = "output.conburnin",
+              textAreaInput("annot",
+                            "Custom consensus plot annotations", ""
+              ),
               downloadButton("downloadtreePDF", "Download pdf of current tree plot")
             )
           )
@@ -233,12 +238,12 @@ ui <- fluidPage(
               conditionalPanel(
                 condition = "output.consensusPlot",
                 sliderInput("postprop",
-                  label = "Collapse branches with posterior probabilities lower than",
-                  min = 0.5,
-                  max = 1,
-                  value = 0.5,
-                  step = 0.05,
-                  ticks = FALSE
+                            label = "Collapse branches with posterior probabilities lower than",
+                            min = 0.5,
+                            max = 1,
+                            value = 0.5,
+                            step = 0.05,
+                            ticks = FALSE
                 ),
                 hr()
               ),
@@ -247,8 +252,8 @@ ui <- fluidPage(
               conditionalPanel(
                 condition = "output.consensusPlot",
                 downloadButton("newick",
-                  "Export tree in newick format",
-                  style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
+                               "Export tree in newick format",
+                               style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
                 )
               ),
               br()
@@ -272,8 +277,8 @@ ui <- fluidPage(
               conditionalPanel(
                 condition = "output.rfPlot",
                 downloadButton("downloadrfplot",
-                  "Download plot as pdf",
-                  style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
+                               "Download plot as pdf",
+                               style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
                 ),
                 br()
               ),
@@ -286,9 +291,9 @@ ui <- fluidPage(
               div(style = "display: inline-block;vertical-align:top", conditionalPanel(
                 "output.bpselect",
                 textAreaInput("bptext",
-                  "Enter taxon names (1 per line)", "",
-                  height = "170px",
-                  width = "400px"
+                              "Enter taxon names (1 per line)", "",
+                              height = "170px",
+                              width = "400px"
                 )
               )),
               div(style = "display: inline-block;vertical-align:top; width: 100px;", HTML("<br>")),
@@ -316,7 +321,7 @@ ui <- fluidPage(
                 downloadButton("downloadrwtyplot",
                                "Download plot as pdf",
                                style = "padding:5px 10px; font-size:90%; background-color:white; color:black"))
-              )
+            )
           )
         )
       )
