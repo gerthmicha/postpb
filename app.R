@@ -18,26 +18,26 @@ read.trace <- function(tracefile)({
   )
   # add chain name as parameter
   tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
-  # apply thinning and burnin
-  tracefilelist <- lapply(tracefilelist, prep.trace)
-  # combine all into 1 dataframe
-  traceDF <- do.call("rbind", tracefilelist)
-  traceDF <- tidyr::gather(traceDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
-  return(traceDF)
+  lapply(tracefilelist, tibble::as_tibble)
 })
 
-# apply thinning and burnin to trace files 
-prep.trace <- function(trace) {
-  trace <- tibble::as_tibble(trace)
-  # rename all first columns as 'iter'
-  colnames(trace)[1] <- "iter"
-  # apply thinning
-  trace <- trace[seq(from = 0, to = nrow(trace), by = input$prop), ]
-  # remove burnin
-  trace <- trace[input$burnin + 1:nrow(trace), ]
-  # remove meaningless variables (in terms of analysis here)
+# trace thinning
+thin.trace <- function(trace) {
+  trace <- trace[seq(from = 0, to = nrow(trace), by = tracethin()), ]
   trace <- select(trace, -matches("time|topo"))
+}
+
+# remove burnin from trace
+burn.trace <- function(trace) {
+  trace <- trace[input$burnin + 1:nrow(trace), ]
   return(trace)
+}
+
+# merge all trace files into dataframe
+tracelist.as.df <- function(tracelist){
+  traceDF <- do.call("rbind", tracelist)
+  traceDF <- tidyr::gather(traceDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
+  return(traceDF)
 }
 
 # chose only the traces that are currently selected
