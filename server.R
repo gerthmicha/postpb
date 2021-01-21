@@ -34,7 +34,7 @@ server <- function(input, output, session) {
     tracefile$name <- list.files("example/", "\\.trace\\>", full.names = FALSE)
   })
   
-  # if 'example 2' button is pressed, load example 1 from example folder
+  # if 'example 2' button is pressed, load example 2 from example folder
   observeEvent(input$exampletrace2, {
     tracefile$datapath <- list.files("example/", "\\.p\\>", full.names = TRUE)
     tracefile$name <- list.files("example/", "\\.p\\>", full.names = FALSE)
@@ -62,9 +62,26 @@ server <- function(input, output, session) {
   })
   
   # Reading the trace files
-  tracedata <- reactive({
-    req(tracefile$datapath, input$prop, input$burnin)
+  tracedata_raw <- reactive({
+    req(tracefile$datapath)
     read.trace(tracefile)
+  })
+  
+  # Thinning the tracefiles
+  tracedata_thin <- reactive({
+    # Applies thinning
+    tracelist <- lapply(tracedata_raw(), thin.trace)
+    
+    # rename first column in all dfs to "iter"
+    lapply(tracelist, function(dflist) {
+      names(dflist)[1] <- "iter"
+      dflist
+    })
+  })
+  
+  # Removing burnin from the tracefiles, and merge all into df
+  tracedata <- reactive({
+    tracelist.as.df(lapply(tracedata_thin(), burn.trace))
   })
   
   # filter tracedata to only plot selected trace files in checkbox (default= select all)
@@ -75,17 +92,40 @@ server <- function(input, output, session) {
   
   
   #| UI ELEMENTS FOR TRACE TAB SIDEBAR ------------------------------
-  
-  
+ 
   # display burnin slider using the number of generations read from trace file
   output$burnin <- renderUI({
     req(tracefile)
     sliderInput("burnin", "Burnin [# of iterations]:",
                 min = 0,
-                max = trunc(ngen() / input$prop),
-                value = trunc(ngen() / input$prop / 5), # default = 20% of iterations
-                step = 100 / input$prop
+                max = trunc(ngen() / 10),
+                value = trunc(ngen() / 10 * 0.2), # default = 20% of iterations
+                # default for step 10 for 100–999 gens, 100 for 1000-9999 etc
+                step = 10^(ceiling(log10(ngen() / 10 * 0.02))) 
     )
+  })
+   
+  # Set the default value of trace file thinning to 10
+  tracethin <- reactiveVal(10)
+  
+  # Update the tree thinning value for calculating the consensus
+  # only after burnin has changed
+  observeEvent(input$burnin, { 
+    tracethin(input$tracethin)
+  })
+  
+  # Update the burnin after tree thinning button is pressed
+  observeEvent(input$trecalc, {
+    thinval <- input$tracethin
+    # Update burnin slider
+    updateSliderInput(session, "burnin",
+                      label = "Burnin [# of iterations]:",
+                      min = 0,
+                      max = trunc(ngen() / thinval),
+                      step = 10^(ceiling(log10(ngen() / thinval * 0.02))),
+                      value = ngen() / thinval * 0.2
+    )
+    
   })
   
   # display checkbox to select which trace file to plot
@@ -101,6 +141,11 @@ server <- function(input, output, session) {
       status = "primary",
       icon = icon("check")
     )
+  })
+  
+  # Button that toggles graphics parameters for the statistics
+  observeEvent(input$traceplotsopts, ignoreInit = TRUE, {
+    toggle("tplotopts")
   })
   
   # Button that toggles explanations for the statistics
@@ -387,6 +432,7 @@ server <- function(input, output, session) {
     alltrees
   })
   
+  # Tree thinning
   thintrees <- reactive({
     req(alltrees())
     thin.trees(alltrees())
@@ -456,7 +502,7 @@ server <- function(input, output, session) {
   })
   
   
-  # display checkbox to select which trace file to plot
+  # display checkbox to select which tree file to plot
   output$whichtree <- renderUI({
     req(treefile$datapath[2])
     treenames <- lapply(treenames(), `[[`, 1)
@@ -477,7 +523,7 @@ server <- function(input, output, session) {
     sliderInput("conburnin", "Burnin [# of iterations]:",
                 min = 0,
                 max = trunc( ngentree() / 10 ),
-                step = 100,
+                step = 10^(ceiling(log10(ngentree() / 10 * 0.02))),
                 value = ngentree() / 10 * 0.2
     ) # default burnin = 20% of all trees
   })
@@ -500,7 +546,7 @@ server <- function(input, output, session) {
                       label = "Burnin [# of iterations]:",
                       min = 0,
                       max = trunc(treegens / thinval),
-                      step = 100,
+                      step = 10^(ceiling(log10(ngentree() / 10 * 0.02))),
                       value = treegens / thinval * 0.2
     )
   })
@@ -546,6 +592,11 @@ server <- function(input, output, session) {
                 ),
                 inline = FALSE
     )
+  })
+  
+  # Button that toggles graphics parameters for the tree plots
+  observeEvent(input$treeplotsopts, ignoreInit = TRUE, {
+    toggle("trplotopts")
   })
   
   # PDF download handle for tree plots
@@ -879,6 +930,13 @@ server <- function(input, output, session) {
     )
     add.scale.bar(lwd = input$treecex)
     
+    # add custom plot annotations
+    title(sub = input$annot, 
+          adj = 0, 
+          line = 1, 
+          font = 2, 
+          cex.sub = input$treecex * 0.85)
+    
     # Copy plot to device
     dev.copy2pdf(
       file = ".treeplot.pdf",
@@ -920,7 +978,7 @@ server <- function(input, output, session) {
   
   #| # Tab 2 (Trees) ----- 
   
-  # Slider that determines the tree generation currently displyed
+  # Slider that determines the tree generation currently displayed
   output$treegens <- renderUI({
     req(treefile$datapath)
     sliderInput("generation", "Tree generation",
@@ -1013,11 +1071,6 @@ server <- function(input, output, session) {
            tip.color = concolvec
       )
       add.scale.bar(lwd = input$treecex)
-      title(sub = input$annot, 
-            adj = 0, 
-            line = 3, 
-            font = 2, 
-            cex.sub = input$treecex * 0.85)
     }
     
     # Copy plot to device
@@ -1431,7 +1484,7 @@ server <- function(input, output, session) {
       trees <- list()
       trees[[1]] <- thintrees()[[i]]
       trees[[2]] <- NULL
-      trees[[3]] <- input$prop
+      trees[[3]] <- input$treethin
       names(trees) <- c("trees", "ptable", "gens.per.tree")
       class(trees) <- "rwty.chain"
       rwtytrees[[i]] <- trees
