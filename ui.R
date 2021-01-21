@@ -21,7 +21,8 @@ ui <- fluidPage(
                     accept = c(".trace", ".p")
           ),
           div(style = "font-size: 10px; padding: 0px 0px; margin-top:-1em",
-              actionGroupButtons(c("exampletrace1", "exampletrace2", "exampletraceinf"), c("Load example 1", "Load example 2", "Info"),
+              actionGroupButtons(c("exampletrace1", "exampletrace2", "exampletraceinf"), 
+                                 c("Load example 1", "Load example 2", "Info"),
                                  status = "default",
                                  size = "xs",
                                  fullwidth = TRUE,
@@ -31,29 +32,49 @@ ui <- fluidPage(
           hr(),
           uiOutput("burnin"),
           uiOutput("whichchain"),
-          flowLayout(numericInput("prop", "Consider every Nth iteration",
-                                  value = 10),
-                     numericInput("facetcol", "Number of columns in plot",
-                                  value = 2)
+          fluidRow(
+            column(6, numericInput("tracethin", 
+                                   "Sampling frequency",
+                                   value = 10)
+                   ),
+            column(4, style = "margin-top: 25px;" , 
+                   actionButton("trecalc", "Apply")
+                   )
           ),
-          sliderInput("cex", "Scaling factor for points and lines",
-                      min = 0.1,
-                      max = 10,
-                      value = 1,
-                      step = 0.1
+          switchInput("traceplotsopts",
+                      onLabel = "Fewer options", 
+                      offLabel = "More options", 
+                      value = FALSE,
+                      offStatus = TRUE,
+                      onStatus = TRUE,
+                      inline = TRUE,
+                      size = "small",
+                      width = "100%"
           ),
-          sliderInput("height", "Height of plot in pixels",
-                      min = 100,
-                      max = 5000,
-                      value = 1000,
-                      step = 100
-          ),
-          sliderInput("width", "Width of plot in pixels",
-                      min = 100,
-                      max = 5000,
-                      value = 1000,
-                      step = 100
-          ),
+          hidden(div(id = "tplotopts", 
+                     numericInput("facetcol", 
+                                  "Number of columns in plot",
+                                  value = 2
+                     ),
+                     sliderInput("cex", "Scaling factor for points and lines",
+                                 min = 0.1,
+                                 max = 10,
+                                 value = 1,
+                                 step = 0.1
+                     ),
+                     sliderInput("height", "Height of plot in pixels",
+                                 min = 100,
+                                 max = 5000,
+                                 value = 1000,
+                                 step = 100
+                     ),
+                     sliderInput("width", "Width of plot in pixels",
+                                 min = 100,
+                                 max = 5000,
+                                 value = 1000,
+                                 step = 100
+                     )
+          )),
           hr(),
           conditionalPanel(
             condition = "output.whichchain",
@@ -156,7 +177,8 @@ ui <- fluidPage(
               column(4, uiOutput("ncores")),
               column(4, numericInput("treethin", "Sampling frequency",
                                      value = 10)),
-              column(2, style = "margin-top: 25px;" , actionButton("recalc", "Apply"))
+              column(2, style = "margin-top: 25px;" , 
+                     actionButton("recalc", "Apply"))
             ),
             uiOutput("outgroups"),
             conditionalPanel(
@@ -169,64 +191,79 @@ ui <- fluidPage(
               )
             ),
             hr(),
-            div(style="display: inline-block;vertical-align:top; width: 450px;", uiOutput("highlight")),
-            div(style="display: inline-block;vertical-align:top; width: 100px;", conditionalPanel(
-              condition = "output.highlight",
-              colourpicker::colourInput("high1", "Colour", value = "#2196F3", palette = "limited", showColour = "background",
-                                        allowedCols = c("#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", 
-                                                        "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50",
-                                                        "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800", 
-                                                        "#ff5722", "#795548", "#9e9e9e", "#607d8b", "#ffffff", 
-                                                        "#000000")
+            fluidRow(
+              column(9, uiOutput("highlight")),
+              column(3, 
+                     conditionalPanel(
+                       condition = "output.highlight",
+                       colourpicker::colourInput("high1", "Colour", value = "#2196F3", palette = "limited", showColour = "background",
+                                                 allowedCols = c("#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", 
+                                                                 "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50",
+                                                                 "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800", 
+                                                                 "#ff5722", "#795548", "#9e9e9e", "#607d8b", "#ffffff", 
+                                                                 "#000000")
+                       )
+                     )
               )
-            )
-            ),
-            hr(),
-            prettyCheckboxGroup(
-              inputId = "treeopts",
-              label = "Tree plot options",
-              choiceNames = c("Align labels", "Ignore branch lengths"),
-              choiceValues = c("align", "ignore"),
-              inline = TRUE,
-              status = "primary",
-              icon = icon("check")
-            ),
-            prettyCheckboxGroup(
-              inputId = "treefont",
-              label = "Tree labels",
-              choices = c("bold", "italic"),
-              inline = TRUE,
-              status = "primary",
-              icon = icon("check")
-            ),
-            sliderInput("treecex",
-                        "Scaling factor for labels and lines",
-                        min = 0.1,
-                        max = 10,
-                        value = 1,
-                        step = 0.1
-            ),
-            sliderInput("treeheight",
-                        "Height of plot in pixels",
-                        min = 100,
-                        max = 5000,
-                        value = 800,
-                        step = 100
-            ),
-            sliderInput("treewidth",
-                        "Width of plot in pixels",
-                        min = 100,
-                        max = 5000,
-                        value = 1000,
-                        step = 100
-            ),
-            conditionalPanel(
-              condition = "output.conburnin",
-              textAreaInput("annot",
-                            "Custom consensus plot annotations", ""
               ),
-              downloadButton("downloadtreePDF", "Download pdf of current tree plot")
-            )
+            switchInput("treeplotsopts",
+                        onLabel = "Fewer options", 
+                        offLabel = "More options", 
+                        value = FALSE,
+                        offStatus = TRUE,
+                        onStatus = TRUE,
+                        inline = TRUE,
+                        size = "small",
+                        width = "100%"
+            ),
+            hidden(div(id = "trplotopts", 
+                       prettyCheckboxGroup(
+                         inputId = "treeopts",
+                         label = "Tree plots",
+                         choiceNames = c("Align labels", "Ignore branch lengths"),
+                         choiceValues = c("align", "ignore"),
+                         inline = TRUE,
+                         status = "primary",
+                         icon = icon("check")
+                       ),
+                       prettyCheckboxGroup(
+                         inputId = "treefont",
+                         label = "Tree labels",
+                         choices = c("bold", "italic"),
+                         inline = TRUE,
+                         status = "primary",
+                         icon = icon("check")
+                       ),
+                       sliderInput("treecex",
+                                   "Scaling factor for labels and lines",
+                                   min = 0.1,
+                                   max = 10,
+                                   value = 1,
+                                   step = 0.1
+                       ),
+                       sliderInput("treeheight",
+                                   "Height of plot in pixels",
+                                   min = 100,
+                                   max = 5000,
+                                   value = 800,
+                                   step = 100
+                       ),
+                       sliderInput("treewidth",
+                                   "Width of plot in pixels",
+                                   min = 100,
+                                   max = 5000,
+                                   value = 1000,
+                                   step = 100
+                       ),
+                       conditionalPanel(
+                         condition = "output.conburnin",
+                         textAreaInput("annot",
+                                       "Custom consensus plot annotations", ""
+                         )
+                       )
+                   )
+            ),
+            downloadButton("downloadtreePDF", "Download pdf of current tree plot")
           )
         ),
         column(
