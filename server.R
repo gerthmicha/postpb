@@ -16,7 +16,7 @@ server <- function(input, output, session) {
   
   # >>> TRACE TAB <<<######
   
-  # | TRACE FILE PROPERTIES ------------------------------
+  #  TRACE FILE PROPERTIES ------------------------------
   
   # get input files
   # create reactive value for input files
@@ -161,15 +161,15 @@ server <- function(input, output, session) {
   # get height & width of plot area from slider inputs
   plotheight <- reactive({
     input$height
-  })
+  }) 
   plotwidth <- reactive({
     input$width
-  })
+  })  
   plotcex <- reactive({
     input$cex
-  })
+  }) 
   
-  # calculate scalefactor from height & width given – is used for e.g., line width, cex, etc in plots
+  # calculate scale factor from height & width given – is used for e.g., line width, cex, etc in plots
   scalefactor <- reactive({
     (input$height + input$width) / 2000
   })
@@ -193,13 +193,14 @@ server <- function(input, output, session) {
   tracecolors <- reactive({
     set.trace.colors(tracedata())
   })
+  
   #| #  Tab 1 (Trace) -----
   tP <- reactive({
     xyplot(traceDF())
   })
   output$tracePlot <- renderPlot({
     tP()
-  })
+  }) 
   output$tracePlot.ui <- render.traceplots("tracePlot")
   
   #| # Tab 2 (Violin) -----
@@ -246,6 +247,7 @@ server <- function(input, output, session) {
     # calculate means, sds, and ess for all numeric columns
     Mean <- summarise_if(traceDF, is.numeric, mean)
     SD <- summarise_if(traceDF, is.numeric, sd)
+    
     # same for ess (here, calculate ESS for each trace separately and then add values)
     ess <- group_by(traceDF, trace) %>%
       summarize_if(is.numeric, effectiveSize) %>%
@@ -277,7 +279,7 @@ server <- function(input, output, session) {
     geweke_all <- do.call("cbind", geweke_res)
     min_chainlength <- min(chainlengths)
     
-    # merge means, sd, ess, and geweke into results dataframe
+    # merge means, sd, ess, and geweke into results data frame
     results <- data.frame(t(rbind(Mean, SD, ess)))
     names(results) <- c("Mean", "SD", "ESS")
     results <- cbind(results, hpd)
@@ -287,10 +289,9 @@ server <- function(input, output, session) {
     # remove 'iter' & 'time' variables
     results <- results[2:nrow(results), ]
     
+    # calculate discrepancy according to phylobayes manual
     if (length(tracenames) > 1) {
-      
-      # calculate discrepancy according to phylobayes manual
-      # first, get means and sd for each variable and each chain sepately
+      # first, get means and sd for each variable and each chain separately
       means <- group_by(traceDF, trace) %>%
         summarize_if(is.numeric, mean) %>%
         select(-trace)
@@ -298,7 +299,7 @@ server <- function(input, output, session) {
         summarize_if(is.numeric, sd) %>%
         select(-trace)
       
-      # then calculate Discrepancy for 2 chains
+      # then calculate discrepancy for 2 chains
       if (length(tracenames) == 2) {
         Discrepancy <- 2 * abs(means[1, ] - means[2, ]) / (sds[1, ] + sds[2, ])
         Discrepancy <- data.frame(t(Discrepancy[2:length(Discrepancy)]))
@@ -336,7 +337,7 @@ server <- function(input, output, session) {
         tracelist[[j]] <- coda::mcmc(tracex[1:min_chainlength, 2:ncol(tracex)])
       }
       
-      # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results dataframe
+      # Calculate Gelman & Rubin, extract point estimates and ci, rename, and combine with results data frame
       gel.res <- coda::gelman.diag(tracelist, autoburnin = FALSE, multivariate = FALSE)
       gel.point <- data.frame(gel.res$psrf[, 1])
       gel.ci <- data.frame(gel.res$psrf[, 2])
@@ -351,7 +352,7 @@ server <- function(input, output, session) {
       results <- results[, 2:ncol(results)]
     }
     
-    # for the numeric values in dataframe, round using 2 decimals
+    # for the numeric values in data frame, round using 2 decimals
     is.num <- sapply(results, is.numeric)
     results[is.num] <- lapply(results[is.num], round, 2)
     
@@ -380,7 +381,7 @@ server <- function(input, output, session) {
     treefile$datapath <- list.files("example/", "\\.treelist\\>", full.names = TRUE)
     treefile$name <- list.files("example/", "\\.treelist\\>", full.names = FALSE)
     example$click <- 1
-    showNotification("Loading example 1",
+    showNotification("Loading example 1. This may take some time.",
                      id ="ex2",
                      duration = NULL)
   })
@@ -389,7 +390,7 @@ server <- function(input, output, session) {
     treefile$datapath <- list.files("example/", "\\.t\\>", full.names = TRUE)
     treefile$name <- list.files("example/", "\\.t\\>", full.names = FALSE)
     example$click <- 2
-    showNotification("Loading example 2",
+    showNotification("Loading example 2. This may take some time.",
                      id = "ex2", 
                      duration = NULL)
   })
@@ -438,7 +439,7 @@ server <- function(input, output, session) {
     thin.trees(alltrees())
   })
   
-  # After treefiles have been read in, reset tree format radio buttons
+  # After tree files have been read in, reset tree format radio buttons
   observeEvent(alltrees(), {
     updatePrettyRadioButtons(session, "treefiletype",
                              choices = c("Newick (e.g., Phylobayes)", "Nexus (e.g., MrBayes)"),
@@ -502,7 +503,7 @@ server <- function(input, output, session) {
   })
   
   
-  # display checkbox to select which tree file to plot
+  # display check box to select which tree file to plot
   output$whichtree <- renderUI({
     req(treefile$datapath[2])
     treenames <- lapply(treenames(), `[[`, 1)
@@ -789,6 +790,7 @@ server <- function(input, output, session) {
       highcol$df = as_tibble(cbind( roottree()$tip.label, rep("black", length( roottree()$tip.label))))
     })
   })
+  
   # If taxa are selected, update the colors for the selected taxa in the dataframe
   observeEvent(input$highlight, {
     highcol$df <- highcol$df  %>% 
@@ -823,7 +825,7 @@ server <- function(input, output, session) {
                                          method = "least.squares")
     
     
-    # and count how often the nodes are present in all trees (=pp) and writes this as nodelabels to the tree
+    # and count how often the nodes are present in all trees (=pp) and writes this as node labels to the tree
     sv <- prop.clades(contree, treesall)
     contree$node.label <- sv / length(treesall)
     contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
@@ -945,7 +947,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # render plot 2 with spinner
+  # render consensus plot with spinner
   output$consensusPlot.ui <- renderUI({
     withSpinner(plotOutput("consensusPlot",
                            height = treeheight(),
@@ -997,7 +999,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # plot 1 is for single tree plots per generation
+  # This plot shows a single tree per iteration and chain
   output$treeplot <- renderPlot({
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
