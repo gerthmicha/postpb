@@ -35,7 +35,6 @@ if (any(installed_packages == FALSE)) {
 install.packages("rwty", dependencies = TRUE)
 
 # Run Shiny app
-library(shiny)
 shiny::runGitHub("postpb","gerthmicha")
 ```
 
