@@ -1,9 +1,9 @@
 # get number of generations from trace files
 # read all tracefiles
-get.ngen <- function(tracefile){
+get.ngen <- function(tracefile) {
   tracefilelist <- lapply(tracefile$datapath, data.table::fread,
-                          sep = "\t",
-                          header = TRUE
+    sep = "\t",
+    header = TRUE
   )
   # determine shortest trace file
   ngen <- min(unlist(lapply(tracefilelist, nrow)))
@@ -11,15 +11,17 @@ get.ngen <- function(tracefile){
 }
 
 # read and re-format the trace files
-read.trace <- function(tracefile)({
-  tracefilelist <- lapply(tracefile$datapath, data.table::fread,
-                          sep = "\t",
-                          header = TRUE,
-  )
-  # add chain name as parameter
-  tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
-  lapply(tracefilelist, tibble::as_tibble)
-})
+read.trace <- function(tracefile) {
+  ({
+    tracefilelist <- lapply(tracefile$datapath, data.table::fread,
+      sep = "\t",
+      header = TRUE,
+    )
+    # add chain name as parameter
+    tracefilelist <- Map(cbind, tracefilelist, trace = chainnames())
+    lapply(tracefilelist, tibble::as_tibble)
+  })
+}
 
 # trace thinning
 thin.trace <- function(trace) {
@@ -34,14 +36,14 @@ burn.trace <- function(trace) {
 }
 
 # merge all trace files into dataframe
-tracelist.as.df <- function(tracelist){
+tracelist.as.df <- function(tracelist) {
   traceDF <- do.call("rbind", tracelist)
   traceDF <- tidyr::gather(traceDF, variable, value, -trace, -iter, na.rm = TRUE, factor_key = TRUE)
   return(traceDF)
 }
 
 # chose only the traces that are currently selected
-chose.trace <- function(traceDF){
+chose.trace <- function(traceDF) {
   if (length(tracefile$datapath) == 1) {
     traceDF <- tracedata()
   }
@@ -56,7 +58,7 @@ chose.trace <- function(traceDF){
 }
 
 # set colors for trace file plotting
-set.trace.colors <- function(tracedata){
+set.trace.colors <- function(tracedata) {
   traces <- unique(tracedata$trace)
   colorvector <- c("#377eb8", "#ff7f00", "#4daf4a", "#984ea3")
   colorvector <- colorvector[1:length(traces)]
@@ -66,15 +68,15 @@ set.trace.colors <- function(tracedata){
 
 # plotting functions
 # Trace Plot
-xyplot <- function(traceDF){
+xyplot <- function(traceDF) {
   tP1 <- ggplot(traceDF, aes(y = value, x = iter, fill = trace)) +
     facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_color_manual(values = tracecolors())
-  # This adds points to XY plos only if this option was chosen in checkbox
+  # This adds points to XY plots only if this option was chosen in check box
   if ("points" %in% input$traceplotstyle) {
     tP1 <- tP1 + geom_point(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex)
   }
-  # This adds lines to XY plos only if this option was chosen in checkbox
+  # This adds lines to XY plots only if this option was chosen in check box
   if ("lines" %in% input$traceplotstyle) {
     tP1 <- tP1 + geom_line(data = traceDF(), aes(y = value, x = iter, color = trace), size = input$cex / 2)
   }
@@ -82,31 +84,31 @@ xyplot <- function(traceDF){
 }
 
 # Violin plot
-violinplot <- function(traceDF){
+violinplot <- function(traceDF) {
   vP1 <- ggplot(traceDF, aes(y = value, x = trace, fill = trace)) +
     facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_fill_manual(values = tracecolors()) +
     guides(scale_color_manual())
-  # Users can add Boxplots and/or datapoints to violin plot
-  # Datapoints must always be first layer, so each combination of Violin/Boxplot/points is iterated below
-  # No points, no boxplots
+  # Users can add box plots and/or data points to violin plot
+  # Data points must always be first layer, so each combination of violin/box plot/points is iterated below
+  # No points, no box plots
   if (!"boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
     vP1 <- vP1 +
       geom_violin(trim = TRUE, alpha = 0.5, color = NA)
   }
-  # With points, no boxplots
+  # With points, no box plots
   if (!"boxplot" %in% input$violinplotstyle & "points" %in% input$violinplotstyle) {
     vP1 <- vP1 +
       geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
       geom_violin(trim = TRUE, alpha = 0.5, color = NA)
   }
-  # No points, with boxplots
+  # No points, with box plots
   if ("boxplot" %in% input$violinplotstyle & !"points" %in% input$violinplotstyle) {
     vP1 <- vP1 +
       geom_violin(trim = TRUE, alpha = 0.5, color = NA) +
       geom_boxplot(fill = NA, width = 0.2, color = "darkgray", outlier.shape = NA, size = input$cex / 2)
   }
-  # With points and boxplots
+  # With points and box plots
   if ("points" %in% input$violinplotstyle & "boxplot" %in% input$violinplotstyle) {
     vP1 <- vP1 +
       geom_jitter(height = 0, width = 0.1, alpha = 0.2, color = "gray", show.legend = FALSE) +
@@ -117,21 +119,22 @@ violinplot <- function(traceDF){
 }
 
 # density plot
-densityplot <- function(traceDF){
+densityplot <- function(traceDF) {
   dP1 <- ggplot(traceDF) +
     geom_density(aes(x = value, fill = trace), alpha = 0.5, size = 0) +
     facet_wrap(~variable, scales = "free", ncol = input$facetcol) +
     scale_fill_manual(values = tracecolors()) +
-    tracetheme() + theme(axis.text.y = element_blank())  
+    tracetheme() +
+    theme(axis.text.y = element_blank())
   return(dP1)
 }
 
 # render plots
-render.traceplots <- function(traceplot){
+render.traceplots <- function(traceplot) {
   traceplot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput(traceplot,
-                                            height = plotheight(),
-                                            width = plotwidth()
+      height = plotheight(),
+      width = plotwidth()
     ),
     color = "#2C4152", size = 0.5
     )
@@ -139,26 +142,25 @@ render.traceplots <- function(traceplot){
   return(traceplot.ui)
 }
 
-
 # style data table
-# call dataframe with DT::datatable to enable nice formatting
-style.table <- function(table){
+# call data frame with DT::data table to enable nice formatting
+style.table <- function(table) {
   styled_table <- DT::datatable(table,
-                                selection = "none",
-                                extensions = "Buttons",
-                                options = list(
-                                  searching = FALSE,
-                                  ordering = FALSE,
-                                  orientation = "landscape",
-                                  pageLength = nrow(table),
-                                  dom = "Bt",
-                                  buttons = c("copy", "csv", "print")
-                                )
+    selection = "none",
+    extensions = "Buttons",
+    options = list(
+      searching = FALSE,
+      ordering = FALSE,
+      orientation = "landscape",
+      pageLength = nrow(table),
+      dom = "Bt",
+      buttons = c("copy", "csv", "print")
+    )
   ) %>%
     DT::formatStyle("ESS", color = styleInterval(99.99, c("red", "black"))) %>%
     DT::formatStyle(names(table)[grep("Geweke", names(table))], color = styleInterval(2, c("black", "red"))) %>%
     DT::formatStyle(0, fontWeight = "bold")
-  
+
   if (length(unique(traceDF()$trace)) > 1) {
     styled_table <- styled_table %>%
       DT::formatStyle(c("GR point estimate", "GR 95% CI"), color = styleInterval(1.2, c("black", "red"))) %>%
@@ -168,26 +170,25 @@ style.table <- function(table){
 }
 
 
-# read trees 
+# read trees
 # only update tree format when new files are uploaded
 
-read.treefiles <- function(treefile){
-  
+read.treefiles <- function(treefile) {
   if (example$click == 1) {
     treeformat <- "Newick (e.g., Phylobayes)"
   }
-  
+
   if (example$click == 2) {
     treeformat <- "Nexus (e.g., MrBayes)"
   }
-  
+
   if (example$click == 0) {
     treeformat <- input$treefiletype
   }
-  
-  
+
+
   treelist <- list()
-  
+
   for (i in 1:length(treefile$datapath)) {
     treepath <- treefile$datapath[i]
     if (treeformat == "Newick (e.g., Phylobayes)") {
@@ -200,9 +201,9 @@ read.treefiles <- function(treefile){
       )
       treelist[[i]] <- ape::read.tree(treepath)
     }
-    
+
     if (treeformat == "Nexus (e.g., MrBayes)") {
-      
+
       # add very simple check to make sure file IS nexus format
       firstline <- readLines(treepath, n = 1)
       validate(
@@ -214,16 +215,16 @@ read.treefiles <- function(treefile){
   return(treelist)
 }
 
-thin.trees <- function(treelist){
+thin.trees <- function(treelist) {
   thinlist <- list()
-  for (i in 1:length(treelist)){
+  for (i in 1:length(treelist)) {
     thinlist[[i]] <- treelist[[i]][seq(from = 1, to = length(treelist[[i]]), by = treethin())]
   }
   return(thinlist)
 }
 
 # combine all trees into single multiphylo object
-combine.trees <- function(alltrees){
+combine.trees <- function(alltrees) {
   req(treefile$datapath)
   req(length(alltrees()) >= 1)
   treesall <- list()
