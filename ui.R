@@ -133,7 +133,6 @@ ui <- fluidPage(
                 hidden(div(id = "stats", includeMarkdown("stats.md")))
               )
             ),
-            br()
           )
         )
       )
