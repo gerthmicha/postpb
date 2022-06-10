@@ -1,6 +1,20 @@
 # load libraries
-packages <- c("shiny", "colourpicker", "coda", "data.table", "distory", 
-              "doParallel", "DT", "dplyr", "ggplot2", "foreach", "gridExtra", 
-              "markdown", "phytools", "shinycssloaders", "shinyjs", "shinythemes",
-              "shinyWidgets", "stringr", "tidyr")
-invisible(lapply(packages, library, character.only = TRUE))
+library("shiny")
+library("colourpicker")
+library("coda")
+library("data.table")
+library("distory")
+library("doParallel")
+library("DT")
+library("dplyr")
+library("ggplot2")
+library("foreach")
+library("gridExtra") 
+library("markdown")
+library("phytools")
+library("shinycssloaders")
+library("shinyjs")
+library("shinythemes")
+library("shinyWidgets")
+library("stringr")
+library("tidyr")
