@@ -1,0 +1,60 @@
+---
+title: "Tutorial"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    highlight: kate
+---
+
+This tutorial will guide you through *postpb* usage by explaining each of the panels in the app and their main functions.
+
+# Orientation
+
+After installing and starting *postpb* as described [here](https://github.com/gerthmicha/postpb#installation), make sure the app runs in your browser using full screen. If you are using Rstudio, it may display the app in its viewer. In that case, you can switch to the browser by clicking 'open in browser' in the viewer's top panel.
+
+Similar to a regular website, *postpb* is organised in multiple pages (panels) which which can be accessed by clicking on the tabs on the very top the the screen ('Parameters', 'Trees', 'About'). While the latter contains some general information, the former 2 are where the analyses happen. Note that the panels are completely independent of each other, meaning that you can use one or both, and that you don't necessarily need to provide data from the same runs to both panels (although this is the typical use case).
+
+# File formats
+
+When you start the app, you will likely have data from a Bayesian phylogenetic analysis. Typically, this would be 1) Parameter or trace files that contain the values of various estimated model parameters over the length of the run 2) Tree files containing estimated phylogenies for each iteration of the run
+
+Depending on the software used, these files may look quite differently. *postpb* works best with output files from *Phylobayes* and *MrBayes*, but should work for other Bayesian phylogenetics software as well.
+
+-   Parameter files are typically tabulator separated files, with one column per model parameter, and one line for each iteration or generation of the run. files produced by *Phylobayes* and *MrBayes* end in `.trace` or `.p`, respectively.\
+-   Tree files contain one tree per iteration of the run. The most typical tree formats are Newick (e.g., used by Phylobayes, files end in `*.treelist`) and Nexus (used by MrBayes, `*.t` file ending).
+
+Examples of all file types can be found in [the example folder](https://github.com/gerthmicha/postpb/tree/master/example) of this repository.
+
+# Parameters
+
+When you start the app, the 'Parameters' tab will open automatically. You will notice that there is a side panel to the left, and a main display area to the right. The main display carries 4 tabs ('Traces', 'Violin', 'Density', 'Summary statistics'). The side panel is where you find all of the global options and settings, i.e., the settings that apply to each of the plots.
+
+To get to know the app, it makes sense to use one of the examples. Click 'Load example 1' and wait for a plot to appear.
+
+## Sidebar
+
+In the sidebar to the left, the following global options (i.e., applying to all trace plots) are available:
+
+-   **Burnin** - the number of iterations to exclude from the beginning of the run. This defaults to 20% of the shortest chain, but it makes sense to play around with this (indeed, one of the aims of *postpb* is to allow you to choose a sensible burnin size).
+-   **Select trace file** - it is recommended to have multiple runs and/or chains for your Bayesian phylogenetics analysis. Here, you can exclude selected chains from your *postpb* analysis. This may be sensible if one of your chains is a clear outlier.
+-   **Sampling frequency** - How many data points from your Bayesian phylogeny do you want to analyse in *postpb*? The default value is 10, meaning only 10% of the run will be analysed. Due to the high autocorrelation in Bayesian phylogenetics analyses, this is often a good default. Keep in mind however that you may already have specified a reduced sampling frequency within e.g., *Phylobayes* or *Mr Bayes*. If you want to include the entire run, choose '1'. The lower you choose this value, the longer *postpb* will need to produce the graphs.
+-   **More options** - this button enables another suit of options that are all about the layout of the plots (size and number of columns). All changes will be applied immediately.
+-   **Download pdf** - press this once happy with the look of your plots. A pdf will be generated.
+
+**IMPORTANT:** All of the display items in the main display area will update dynamically if any of the global options are changed.
+
+## Main display
+
+Access the parameter plots by clicking through the different panels of the main display.
+
+-   **Trace** - generates simple scatter plots of all variables over iteration of the analysis. This is a very common way of displaying results of a Bayesian analysis and is helpful in determining suitable burnin sizes. You can choose to have the scatter plots in lines, points, or both.
+
+-   **Violin** & **Density** - these very similar plots show the distribution of your parameters in the post-burnin sample. The plots are especially helpful in determining how similar the different chains are compared with each other.
+
+-   Various statistics for assessing convergence, stationarity, and mixing of chains
+
+-   Export in several formats
+
+### Trees
+
+Here, tree samples obtained with *Phylobayes* or *MrBayes* can be analysed (file name ending in `.treelist` or `.t`). Typically, one would upload 2--4 tree sample files from mcmc chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented:
