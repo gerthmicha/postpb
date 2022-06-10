@@ -1,5 +1,6 @@
 # load libraries
 source("libraries.R", local = TRUE)
+
 tags$style(type="text/css", ".shiny-output-error { visibility: hidden; }", ".shiny-output-error:before { visibility: hidden; }" )
 
 # Define UI
