@@ -48,7 +48,7 @@ There are two modules in *postpb*, accessible through the tabs in the navbar on 
 
 ## Tutorial
 
-A detailed turorial can be found in the wiki. 
+A detailed tutorial can be found [here](https://gerthmicha.github.io/postpb/). 
 
 ## Examples
 *postpb* comes with two sets of example data that can be loaded by clicking the buttons under the file selection dialogs in the trace and tree tabs. 

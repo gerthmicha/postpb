@@ -5,10 +5,11 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="generator" content="pandoc" />
 
+        <meta name="author" content="Michael Gerth" />
     
         <meta name="date" content="2022-06-10" />
     
-    <title>Tutorial</title>
+    <title>[Work in progress] postpb tutorial</title>
 
         <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1446,23 +1447,27 @@ src: url(data:application/font-sfnt;base64,AAEAAAARAQAABAAQR0RFRgs+Cz8AAjwQAAAAQ
    <div class="book with-summary">
       <div class="book-summary">
         <ul>
-          <li class="title">Tutorial</li>
+          <li class="title">[Work in progress] <em>postpb</em>
+tutorial</li>
           <li class="divider"></li>
         </ul>
         <nav role="navigation" id="toc">
           <ul>
           <li><a href="#orientation">Orientation</a></li>
           <li><a href="#file-formats">File formats</a></li>
-          <li><a href="#parameters">Parameters</a>
+          <li><a href="#the-parameters-tab">The Parameters tab</a>
           <ul>
           <li><a href="#sidebar">Sidebar</a></li>
           <li><a href="#main-display">Main display</a></li>
           </ul></li>
+          <li><a href="#the-trees-tab">The Trees tab</a></li>
           </ul>
         </nav>
         <ul class="authors">
           <li class="divider"></li>
-                               <li><span><i class="glyphicon glyphicon-calendar"></i> 2022-06-10</span></li>
+                                <li><span><i class="glyphicon glyphicon-user"></i> Michael
+Gerth</span></li>
+                                         <li><span><i class="glyphicon glyphicon-calendar"></i> 2022-06-10</span></li>
                   </ul>     
       </div>
       <div class="book-body fixed">
@@ -1475,7 +1480,7 @@ src: url(data:application/font-sfnt;base64,AAEAAAARAQAABAAQR0RFRgs+Cz8AAjwQAAAAQ
       
    
         
-      <h1 class="title">Tutorial</h1>
+      <h1 class="title">[Work in progress] <em>postpb</em> tutorial</h1>
       
         
 
@@ -1504,10 +1509,13 @@ both panels (although this is the typical use case).</p>
 <div id="file-formats" class="section level1">
 <h1>File formats</h1>
 <p>When you start the app, you will likely have data from a Bayesian
-phylogenetic analysis. Typically, this would be 1) Parameter or trace
-files that contain the values of various estimated model parameters over
-the length of the run 2) Tree files containing estimated phylogenies for
-each iteration of the run</p>
+phylogenetic analysis. Typically, this would be</p>
+<ol style="list-style-type: decimal">
+<li>Parameter or trace files that contain the values of various
+estimated model parameters over the length of the run, and</li>
+<li>Tree files containing estimated phylogenies for each iteration of
+the run.</li>
+</ol>
 <p>Depending on the software used, these files may look quite
 differently. <em>postpb</em> works best with output files from
 <em>Phylobayes</em> and <em>MrBayes</em>, but should work for other
@@ -1527,8 +1535,8 @@ file ending).</li>
 <p>Examples of all file types can be found in <a href="https://github.com/gerthmicha/postpb/tree/master/example">the
 example folder</a> of this repository.</p>
 </div>
-<div id="parameters" class="section level1">
-<h1>Parameters</h1>
+<div id="the-parameters-tab" class="section level1">
+<h1>The Parameters tab</h1>
 <p>When you start the app, the ‘Parameters’ tab will open automatically.
 You will notice that there is a side panel to the left, and a main
 display area to the right. The main display carries 4 tabs (‘Traces’,
@@ -1558,47 +1566,45 @@ to the high autocorrelation in Bayesian phylogenetics analyses, this is
 often a good default. Keep in mind however that you may already have
 specified a reduced sampling frequency within e.g., <em>Phylobayes</em>
 or <em>Mr Bayes</em>. If you want to include the entire run, choose ‘1’.
-The lower you choose this value, the longer <em>postpb</em> will need to
-produce the graphs.</li>
+Low values here will result in longer run times of <em>postpb</em>. To
+apply changing the sampling frequency, click ‘Apply’</li>
 <li><strong>More options</strong> - this button enables another suit of
 options that are all about the layout of the plots (size and number of
 columns). All changes will be applied immediately.</li>
 <li><strong>Download pdf</strong> - press this once happy with the look
 of your plots. A pdf will be generated.</li>
 </ul>
-<p><strong>IMPORTANT:</strong> All of the display items in the main
-display area will update dynamically if any of the global options are
-changed.</p>
+<p><strong>IMPORTANT:</strong> The items in the main display area will
+update dynamically if any of the global options are changed.</p>
 </div>
 <div id="main-display" class="section level2">
 <h2>Main display</h2>
 <p>Access the parameter plots by clicking through the different panels
-of the main display.</p>
+of the main display. Alter the global options (e.g., burnin and sampling
+frequency) to see how that affects descriptive plots and statistics.</p>
 <ul>
 <li><p><strong>Trace</strong> - generates simple scatter plots of all
 variables over iteration of the analysis. This is a very common way of
 displaying results of a Bayesian analysis and is helpful in determining
 suitable burnin sizes. You can choose to have the scatter plots in
-lines, points, or both.</p></li>
+lines, points, or both. Play around with the burnin slider and observe
+how the plot changes.</p></li>
 <li><p><strong>Violin</strong> &amp; <strong>Density</strong> - these
 very similar plots show the distribution of your parameters in the
 post-burnin sample. The plots are especially helpful in determining how
 similar the different chains are compared with each other.</p></li>
-<li><p>Various statistics for assessing convergence, stationarity, and
-mixing of chains</p></li>
-<li><p>Export in several formats</p></li>
+<li><p><strong>Summary statistics</strong> - here, the data is
+summarised once more using descriptive statistics. Click on the ‘Toggle
+explanations’ button to learn a bit about the different values and what
+they may mean for the interpretation of the run. All values can be
+copied to the clipboard (e.g., to paste them into a spreadsheet
+application), downloaded as <code>.csv</code> file or printed from the
+browser.</p></li>
 </ul>
-<div id="trees" class="section level3">
-<h3>Trees</h3>
-<p>Here, tree samples obtained with <em>Phylobayes</em> or
-<em>MrBayes</em> can be analysed (file name ending in
-<code>.treelist</code> or <code>.t</code>). Typically, one would upload
-2–4 tree sample files from mcmc chains run under identical options,
-although loading a single tree sample file is also possible. Click
-through the tabs to access the different funtions. Check the sidebar for
-options. Currently implemented:</p>
 </div>
 </div>
+<div id="the-trees-tab" class="section level1">
+<h1>The Trees tab</h1>
 </div>
 
    

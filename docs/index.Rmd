@@ -1,6 +1,7 @@
 ---
-title: "Tutorial"
+title: "[Work in progress] *postpb* tutorial"
 date: "`r Sys.Date()`"
+author: "Michael Gerth"
 output:
   rmdformats::robobook:
     highlight: kate
@@ -16,7 +17,10 @@ Similar to a regular website, *postpb* is organised in multiple pages (panels) w
 
 # File formats
 
-When you start the app, you will likely have data from a Bayesian phylogenetic analysis. Typically, this would be 1) Parameter or trace files that contain the values of various estimated model parameters over the length of the run 2) Tree files containing estimated phylogenies for each iteration of the run
+When you start the app, you will likely have data from a Bayesian phylogenetic analysis. Typically, this would be 
+
+1) Parameter or trace files that contain the values of various estimated model parameters over the length of the run, and
+2) Tree files containing estimated phylogenies for each iteration of the run.
 
 Depending on the software used, these files may look quite differently. *postpb* works best with output files from *Phylobayes* and *MrBayes*, but should work for other Bayesian phylogenetics software as well.
 
@@ -25,7 +29,7 @@ Depending on the software used, these files may look quite differently. *postpb*
 
 Examples of all file types can be found in [the example folder](https://github.com/gerthmicha/postpb/tree/master/example) of this repository.
 
-# Parameters
+# The Parameters tab
 
 When you start the app, the 'Parameters' tab will open automatically. You will notice that there is a side panel to the left, and a main display area to the right. The main display carries 4 tabs ('Traces', 'Violin', 'Density', 'Summary statistics'). The side panel is where you find all of the global options and settings, i.e., the settings that apply to each of the plots.
 
@@ -37,24 +41,21 @@ In the sidebar to the left, the following global options (i.e., applying to all 
 
 -   **Burnin** - the number of iterations to exclude from the beginning of the run. This defaults to 20% of the shortest chain, but it makes sense to play around with this (indeed, one of the aims of *postpb* is to allow you to choose a sensible burnin size).
 -   **Select trace file** - it is recommended to have multiple runs and/or chains for your Bayesian phylogenetics analysis. Here, you can exclude selected chains from your *postpb* analysis. This may be sensible if one of your chains is a clear outlier.
--   **Sampling frequency** - How many data points from your Bayesian phylogeny do you want to analyse in *postpb*? The default value is 10, meaning only 10% of the run will be analysed. Due to the high autocorrelation in Bayesian phylogenetics analyses, this is often a good default. Keep in mind however that you may already have specified a reduced sampling frequency within e.g., *Phylobayes* or *Mr Bayes*. If you want to include the entire run, choose '1'. The lower you choose this value, the longer *postpb* will need to produce the graphs.
+-   **Sampling frequency** - How many data points from your Bayesian phylogeny do you want to analyse in *postpb*? The default value is 10, meaning only 10% of the run will be analysed. Due to the high autocorrelation in Bayesian phylogenetics analyses, this is often a good default. Keep in mind however that you may already have specified a reduced sampling frequency within e.g., *Phylobayes* or *Mr Bayes*. If you want to include the entire run, choose '1'. Low values here will result in longer run times of *postpb*. To apply changing the sampling frequency, click 'Apply'
 -   **More options** - this button enables another suit of options that are all about the layout of the plots (size and number of columns). All changes will be applied immediately.
 -   **Download pdf** - press this once happy with the look of your plots. A pdf will be generated.
 
-**IMPORTANT:** All of the display items in the main display area will update dynamically if any of the global options are changed.
+**IMPORTANT:** The items in the main display area will update dynamically if any of the global options are changed. 
 
 ## Main display
 
-Access the parameter plots by clicking through the different panels of the main display.
+Access the parameter plots by clicking through the different panels of the main display. Alter the global options (e.g., burnin and sampling frequency) to see how that affects descriptive plots and statistics. 
 
--   **Trace** - generates simple scatter plots of all variables over iteration of the analysis. This is a very common way of displaying results of a Bayesian analysis and is helpful in determining suitable burnin sizes. You can choose to have the scatter plots in lines, points, or both.
+-   **Trace** - generates simple scatter plots of all variables over iteration of the analysis. This is a very common way of displaying results of a Bayesian analysis and is helpful in determining suitable burnin sizes. You can choose to have the scatter plots in lines, points, or both. Play around with the burnin slider and observe how the plot changes. 
 
 -   **Violin** & **Density** - these very similar plots show the distribution of your parameters in the post-burnin sample. The plots are especially helpful in determining how similar the different chains are compared with each other.
 
--   Various statistics for assessing convergence, stationarity, and mixing of chains
+- **Summary statistics** - here, the data is summarised once more using descriptive statistics. Click on the 'Toggle explanations' button to learn a bit about the different values and what they may mean for the interpretation of the run. For documentation purposes, all values can be copied to the clipboard (e.g., to paste them into a spreadsheet application), downloaded as `.csv` file or printed from the browser.  
 
--   Export in several formats
 
-### Trees
-
-Here, tree samples obtained with *Phylobayes* or *MrBayes* can be analysed (file name ending in `.treelist` or `.t`). Typically, one would upload 2--4 tree sample files from mcmc chains run under identical options, although loading a single tree sample file is also possible. Click through the tabs to access the different funtions. Check the sidebar for options. Currently implemented:
+# The Trees tab
