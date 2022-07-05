@@ -488,15 +488,6 @@ server <- function(input, output, session) {
     toggle("trplotopts")
   })
 
-  # PDF download handle for tree plots
-  output$downloadtreePDF <- downloadHandler(
-    filename = "treeplots.pdf",
-    contentType = "application/pdf",
-    content = function(file1) {
-      file.copy(".treeplot.pdf", file1)
-    }
-  )
-
   #| FURTHER TREE DISPLAY OPTIONS #------------------------------
 
   # Reset outgroup only when button is pressed, default is no outgroup
@@ -533,7 +524,6 @@ server <- function(input, output, session) {
     set.tree.font(input$treefont)
   })
 
-
   # this gets height and width for plots from the slider inputs and creates a scale factor to be used in plots
   treeheight <- reactive({
     input$treeheight
@@ -551,27 +541,12 @@ server <- function(input, output, session) {
   #| TREE PLOTS ------------------------------
 
   #| Interactive features -----
-
   # Enable interactive selection of taxon selection for rooting
-  # first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
-  # get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
+  
+  # create a dataframe of tip labels
   tipDF <- reactive({
     req(input$plot_brush)
-
-    # which edges belong to tips?
-    is_tip <- roottree()$edge[, 2] <= length(roottree()$tip.label)
-
-    # order according
-    ordered_tips <- roottree()$edge[is_tip, 2]
-
-    # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
-    tips <- as.data.frame(roottree()$tip.label[ordered_tips])
-    tiporder <- as.data.frame(1:length(roottree()$tip.label))
-    tipDF <- as.data.frame(cbind(tips, tiporder))
-    names(tipDF) <- c("tips", "tiporder")
-
-    # call dataframe
-    tipDF
+    get.tip.df(roottree()) 
   })
 
   # get the names of selected tips from the interactive 'brush' click+drag
@@ -662,42 +637,21 @@ server <- function(input, output, session) {
   })
 
 
-
   #| # Tab 1 (Consensus) -----
   # Plot 1 is a consensus plot
 
-  # first calculate the tree
-  contree.p <- reactive({
+  # merge trees from all chains into single object
+  treesall <- reactive({
     req(length(alltrees()) >= 1)
-
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-
-    # combine trees from all files into single multiphylo object
-    treesall <- combine.trees(thintrees())
-
-    # get consensus branch lengths
-    contree <- phytools::consensus.edges(treesall,
-      method = "least.squares"
-    )
-
-
-    # and count how often the nodes are present in all trees (=pp) and writes this as node labels to the tree
-    sv <- prop.clades(contree, treesall)
-    contree$node.label <- sv / length(treesall)
-    contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
-
-    # adjust node labels: 1) remove "root" label
-    contree$node.label[contree$node.label == "Root"] <- ""
-
-    # convert to numeric
-    contree$node.label <- as.numeric(contree$node.label)
-
-    # call tree
-    contree <- ladderize(contree)
-
-    contree
+    combine.trees(thintrees(), input$conburnin)
+  })
+  
+  # calculate consensus tree
+  contree.p <- reactive({
+    calc.cons(treesall())
   })
   
   # collapse nodes lower than threshold chosen by user
@@ -721,58 +675,16 @@ server <- function(input, output, session) {
   })
 
   # now render consensus plot
-  output$consensusPlot <- renderPlot({
+  consensusplot<- reactive({
     req(highcol$df)
     req(roottree())
-
-    # colorvector
-    col.df <- highcol$df %>%
-      arrange(factor(V1, levels = roottree()$tip.label))
-
-    concolvec <- as.vector(col.df$V2)
-
-    treetot <- sum(unlist(lapply(thintrees(), length)))
-
-    # plot
-    plot(roottree(),
-      main = paste0(
-        "Consensus of ", treetot - (input$conburnin * length(thintrees())), " trees", # number of trees
-        " (", length(thintrees()), " chains)"
-      ), # chains
-      cex.main = input$treecex * 1.1,
-      cex = input$treecex,
-      align.tip.label = treeopts()[1],
-      use.edge.length = treeopts()[2],
-      edge.width = input$treecex,
-      label.offset = 0.01,
-      font = treefont(),
-      tip.color = concolvec
-    )
-    nodelabels(
-      text = roottree()$node.label, # some formatting for the pp values
-      frame = "none",
-      adj = 0,
-      cex = input$treecex * 0.8
-    )
-    add.scale.bar(lwd = input$treecex)
-
-    # add custom plot annotations
-    title(
-      sub = input$annot,
-      adj = 0,
-      line = 1,
-      font = 2,
-      cex.sub = input$treecex * 0.85
-    )
-
-    # Copy plot to device
-    dev.copy2pdf(
-      file = ".treeplot.pdf",
-      height = treeheight() / 72,
-      width = treewidth() / 72
-    )
+    render.contree(roottree(), highcol$df, thintrees(), input$treecex, treeopts(), treefont(), input$annot)
+    recordPlot()
   })
-
+  output$consensusPlot <- renderPlot({
+    consensusplot()
+  })
+  
   # render consensus plot with spinner
   output$consensusPlot.ui <- renderUI({
     withSpinner(plotOutput("consensusPlot",
@@ -793,6 +705,16 @@ server <- function(input, output, session) {
     )
   })
 
+  # PDF download handle for consensus plot
+  output$consensusPDF <- downloadHandler(
+    filename = "consensus.pdf",
+    contentType = "application/pdf",
+    content = function(file1) {
+      pdf(file1, height = input$treeheight / 72, width = input$treewidth / 72)
+      replayPlot(consensusplot())
+      dev.off()
+    }
+  )
   # also export the tree as newick if wanted
   output$newick <- downloadHandler(
     filename = "consensus.nwk",
@@ -826,89 +748,28 @@ server <- function(input, output, session) {
   })
 
   # This plot shows a single tree per iteration and chain
-  output$treeplot <- renderPlot({
-    if (length(completetrees()) > 1) {
-      req(length(input$whichtree) > 0)
-    }
-
+  treeplot <- reactive({
+    
     # require these for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
-
+    
+    # Make sure trees for plotting are selected
+    if (length(completetrees()) > 1) {
+      req(length(input$whichtree) > 0)
+    }
+    
     # get outgroup from ui, but isolate so that rerooting is only done when button is pressed
     isolate(outgroup <- og$outgroup)
-
-    # change plot layout to 2 columns if 2 treefiles are present
-    if (length(thintrees()) == 2) {
-      par(mfrow = c(1, 2))
-    }
-
-    # 3 columns if 3 treefiles are present
-    if (length(thintrees()) == 3) {
-      par(mfrow = c(1, 3))
-    }
-
-    # and 2x2 for 4 treefiles
-    if (length(thintrees()) == 4) {
-      par(mfrow = c(2, 2))
-    }
-
-    # plot all trees in loop
-    for (i in 1:length(thintrees())) {
-
-      # get trees
-      trees <- thintrees()[[i]]
-
-      # unroot tree if no root was chosen
-      if ("<None>" %in% outgroup) {
-        currtree <- unroot(trees[[input$generation]])
-      }
-
-      # midpoint root if chosen
-      if ("<Midpoint>" %in% outgroup) {
-        currtree <- phytools::midpoint.root(trees[[input$generation]])
-      }
-
-      # root with outgroup if chosen
-      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
-        validate(
-          need(is.monophyletic(trees[[input$generation]], outgroup), "The specified outgroup is not monophyletic!")
-        )
-        currtree <- root(trees[[input$generation]],
-          outgroup = outgroup,
-          resolve.root = TRUE
-        )
-      }
-
-      # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
-      col.df <- highcol$df %>%
-        arrange(factor(V1, levels = currtree$tip.label))
-      concolvec <- as.vector(col.df$V2)
-
-      # Plot
-      plot(ladderize(currtree),
-        main = paste(input$whichtree[i], "iteration", input$generation),
-        cex = input$treecex,
-        cex.main = input$treecex * 1.1,
-        edge.width = input$treecex,
-        align.tip.label = treeopts()[1],
-        use.edge.length = treeopts()[2],
-        label.offset = 0.01,
-        font = treefont(),
-        tip.color = concolvec
-      )
-      add.scale.bar(lwd = input$treecex)
-    }
-
-    # Copy plot to device
-    dev.copy2pdf(
-      file = ".treeplot.pdf",
-      height = treeheight() / 72,
-      width = treewidth() / 72
-    )
+    
+    # plot tree
+    render.singletrees(thintrees(), outgroup, input$generation, highcol$df, input$treecex, treefont(), treeopts(), input$whichtree)
+    recordPlot()
   })
-
+  output$treeplot <- renderPlot({
+    treeplot()
+  })
 
   # render the plot with spinner & using the height and widths from ui
   output$treePlot.ui <- renderUI({
@@ -921,96 +782,48 @@ server <- function(input, output, session) {
     size = 0.5
     )
   })
-
+  
+  # PDF download handle for single trees plot
+  output$singletreePDF <- downloadHandler(
+    filename = "single_tree.pdf",
+    contentType = "application/pdf",
+    content = function(file2) {
+      pdf(file2, height = input$treeheight / 72, width = input$treewidth / 72)
+      replayPlot(treeplot())      
+      dev.off()
+    }
+  )
 
   #| # Tab 3 (Difference) -----
   # Plot 3 shows 2 consensus plots with comparison
 
-  output$differencePlot <- renderPlot({
-
-    # required for interactive rooting
+  differenceplot <- reactive({
+    
+    # require these for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
-    isolate(outgroup <- og$outgroup)
-
+    
     # check if at least 2 tree files are present and if rooting other than midpoint is selected. Throw error if not.
-    validate(
-      need(length(input$whichtree) > 1,
-        message = "Provide tree files from at least 2 chains to display differences between consensus trees."
-      ),
-      need(!("<Midpoint>" %in% outgroup),
-        message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root."
-      )
-    )
-
-
-    # loop through all trees and create tree list as well as color list
-    contrees <- list()
-    colvecs <- list()
-
-    for (i in 1:length(thintrees())) {
-      tree <- thintrees()[[i]]
-      tree <- tree[(input$conburnin + 1):length(tree)]
-      contree <- consensus(tree, p = 0.5)
-
-      # reroot outgroup
-      if (!("<Midpoint>" %in% outgroup) & !("<None>" %in% outgroup)) {
-        contree <- root(contree, outgroup = outgroup)
-      }
-
-      # unroot tree
-      if ("<None>" %in% outgroup) {
-        contree <- unroot(contree)
-      }
-
-      contrees[[i]] <- contree
-
-      # colorvector
-
-      col.df <- highcol$df %>%
-        arrange(factor(V1, levels = contree$tip.label))
-      colvecs[[i]] <- as.vector(col.df$V2)
-    }
-
-
-    # change plot layout according to number of chains analysed
-    if (length(alltrees()) == 2) {
-      par(mfrow = c(1, 2))
-    }
-    if (length(alltrees()) == 3) {
-      par(mfrow = c(3, 2))
-    }
-    if (length(alltrees()) == 4) {
-      par(mfrow = c(3, 4))
-    }
-
-    # this nested loop plots consensus trees side by side, for all combinations in 2, 3, or 4 trees
-    for (i in 1:length(thintrees())) {
-      for (j in i:length(thintrees())) {
-        if (i != j) {
-          phylo.diff.new(contrees[[i]], contrees[[j]],
-            cex = input$treecex,
-            cex.main = input$treecex * 1.1,
-            label.offset = 0.01,
-            font = treefont(),
-            main1 = input$whichtree[i],
-            main2 = input$whichtree[j],
-            coltip1 = colvecs[[i]],
-            coltip2 = colvecs[[j]]
-          )
-        }
-      }
-    }
-
-    # Copy plot to device
-    dev.copy2pdf(
-      file = ".treeplot.pdf",
-      height = treeheight() / 72,
-      width = treewidth() / 72
-    )
+    isolate(outgroup <- og$outgroup)
+    render.treediff(thintrees(), alltrees(), outgroup, input$conburnin, highcol$df, input$treecex, treefont(), input$whichtree)
+    recordPlot()
   })
-
+  output$differencePlot <- renderPlot({
+    differenceplot()
+    })
+  
+  # PDF download handle for difference plot
+  output$differencePDF <- downloadHandler(
+    filename = "difference.pdf",
+    contentType = "application/pdf",
+    content = function(file4) {
+      pdf(file4, height = input$treeheight / 72, width = input$treewidth / 72)
+      replayPlot(differenceplot())      
+      dev.off()
+    }
+  )
+  
   # finally, render this plot with spinner
   output$differencePlot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
@@ -1027,89 +840,8 @@ server <- function(input, output, session) {
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-
-    rflist <- list()
-    for (i in 1:length(thintrees())) {
-      tree <- thintrees()[[i]]
-      tree <- tree[(input$conburnin + 1):length(tree)]
-      rf <- vector(mode = "numeric")
-
-      rf <- foreach(j = 2:length(tree), .packages = "ape", .combine = c) %dopar% {
-        rf[j - 1] <- dist.topo(tree[j - 1], tree[j])
-      }
-
-      x <- (2 + input$conburnin):(length(tree) + input$conburnin)
-
-      RFdf <- as.data.frame(cbind(x, rf))
-      RFdf$chain <- paste("Iteration n vs. Iteration (n-1),", input$whichtree[i])
-      rflist[[i]] <- RFdf
-    }
-
-    RFdf <- do.call("rbind", rflist)
-    RFdf$difference <- "Tree distance within chain"
-
-    # results vector
-    if (length(thintrees()) > 1) {
-      rflist3 <- list()
-      counter <- 0
-
-      for (h in 1:length(thintrees())) {
-        tree1 <- thintrees()[[h]]
-        tree1 <- tree1[(input$conburnin + 1):length(tree1)]
-        for (j in h:length(thintrees())) {
-          if (h != j) {
-            counter <- counter + 1
-            tree2 <- thintrees()[[j]]
-            tree2 <- tree2[(input$conburnin + 1):length(tree2)]
-            minlength <- min(c(length(tree1), length(tree2)))
-
-            rf <- foreach(k = 1:minlength, .packages = "ape", combine = c) %dopar% {
-              dist.topo(tree1[[k]], tree2[[k]])
-            }
-
-            x <- (1 + input$conburnin):(length(rf) + input$conburnin)
-
-            RFdf3 <- as.data.frame(cbind(x, rf))
-            RFdf3$chain <- paste(input$whichtree[h], input$whichtree[j], sep = " vs. ")
-            rflist3[[counter]] <- RFdf3
-          }
-        }
-      }
-
-      RFdf3 <- do.call("rbind", rflist3)
-      RFdf3 <- as.data.frame(lapply(RFdf3, unlist))
-      RFdf3$difference <- "Tree distance between chains"
-
-      RFdf <- rbind(RFdf, RFdf3)
-    }
-
-    RFggplot <- ggplot(data = RFdf, aes(x = x, y = rf, color = chain)) +
-      geom_line(size = input$treecex / 2) +
-      theme_light() +
-      facet_wrap(~difference, nrow = 2, scales = "free_y") +
-      xlab("Tree generation") +
-      ylab("Robinson-Foulds distance") +
-      theme(
-        axis.title = element_text(size = 12 * treescalefactor()),
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.2, "cm"),
-        axis.text = element_text(size = 11 * treescalefactor()),
-        legend.position = "bottom",
-        legend.direction = "vertical",
-        legend.text = element_text(size = 12 * treescalefactor()),
-        strip.text = element_text(size = 14 * treescalefactor(), face = "bold")
-      ) +
-      scale_color_manual(values = c(
-        "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
-        "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"
-      ))
-
-
-    # call plot
-    RFggplot
+    render.rfplot(thintrees(), input$conburnin, input$whichtree, input$treecex, treescalefactor())
   })
-
-  # render plot
   output$rfPlot <- renderPlot({
     rP()
   })
@@ -1124,8 +856,8 @@ server <- function(input, output, session) {
   # create download button for plot
   output$downloadrfplot <- downloadHandler(
     filename = "RFplot.pdf",
-    content = function(file3) {
-      pdf(file3, height = input$height / 144, width = input$width / 72)
+    content = function(file5) {
+      pdf(file5, height = input$treeheight / 72, width = input$treewidth / 72)
       gridExtra::grid.arrange(rP(), ncol = 1)
       dev.off()
     }
@@ -1177,61 +909,7 @@ server <- function(input, output, session) {
   # Count support for selected bipartitions
   bpsupport <- reactive({
     req(thintrees())
-
-    validate(
-      need(length(selectedtax()) > 1,
-        message = "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."
-      ),
-      need(length(intersect(selectedtax(), tipnames())) == length(selectedtax()),
-        message = "Not all taxon name(s) are present in tree. Please check."
-      )
-    )
-
-    if (length(thintrees()) > 1) {
-      req(length(input$whichtree) > 0)
-    }
-
-    # read in trees in loop
-    treesall <- list()
-    for (i in 1:length(thintrees())) {
-      # get trees
-      trees <- thintrees()[[i]]
-      trees <- trees[(input$conburnin + 1):length(trees)]
-      if (i == 1) {
-        treesall <- trees
-      } else {
-        treesall <- c(treesall, trees)
-      }
-    }
-
-    selectedtax <- selectedtax()
-
-
-    # check if taxa from the list are monophyletic (for whole list of trees)
-    bpcount <- vector()
-    bpcount <- foreach(
-      i = 1:length(treesall),
-      .packages = "ape",
-      combine = c,
-      .inorder = FALSE
-    ) %dopar% {
-      is.monophyletic(treesall[[i]], selectedtax())
-    }
-
-    # count number of "TRUE"
-    monotrue <- sum(unlist(bpcount))
-    monotrue <- as.numeric(monotrue)
-
-    # summarize results in list
-    bpsupport <- list(
-      absolute = monotrue, # in how many trees is the group monophyletic
-      relative = formatC(monotrue / length(treesall) * 100,
-        digits = 2, format = "f"
-      ), # in percent
-      total = length(bpcount) # how many trees were analysed
-    )
-
-    bpsupport
+    calc.bpsupport(selectedtax(), tipnames(), thintrees(), input$whichtree, input$conburnin)
   })
 
   output$bipart <- renderText({
@@ -1262,43 +940,7 @@ server <- function(input, output, session) {
   # also plot the tested groups as monophyletic. This is just for visual confirmation that the right taxa were selected.
   output$bipartPlot <- renderPlot({
     req(treefile$datapath, selectedtax(), bpsupport())
-
-    # get all tipnams, the ones that were selected and extract the non selected ones
-    alltips <- tipnames()
-    selecttips <- selectedtax()
-    inverttips <- alltips[!alltips %in% selecttips]
-
-    # this adds parentheses and commas to all selected and non-selected tip names s
-    str1 <- paste("(", selecttips, "),", sep = "", collapse = "")
-    str1 <- substr(str1, 1, nchar(str1) - 1)
-    str2 <- paste("(", inverttips, "),", sep = "", collapse = "")
-    str2 <- substr(str2, 1, nchar(str2) - 1)
-
-    # to create newick tree, add paretheses around each monophyletic group and final semicolon
-    bipartition <- paste0("(", str2, "),", "(", str1, ");")
-
-    # read tree string
-    bipartition_plot <- read.newick(text = bipartition)
-
-    # make all edge lengths equal (improves display)
-    bipartition_plot$edge.length <- rep(1, length(bipartition_plot$edge / 2))
-
-    # Highlight the edges connecting selected trees in pink
-    edge.highlight <- which.edge(bipartition_plot, selecttips)
-    edgecolor <- rep("black", Nedge(bipartition_plot))
-    edgecolor[edge.highlight] <- "#FF1493"
-
-    # Also, increase edge width
-    edgewidth <- rep(1, Nedge(bipartition_plot))
-    edgewidth[edge.highlight] <- 2
-
-    # and plot
-    plot(bipartition_plot,
-      type = "phylogram",
-      cex = input$treecex,
-      edge.color = edgecolor,
-      edge.width = edgewidth * input$treecex
-    )
+    render.bipartplot(tipnames(), selectedtax())
   })
 
   # render
@@ -1317,84 +959,19 @@ server <- function(input, output, session) {
   # convert tree files to rwty format
   rwtytrees <- reactive({
     req(treefile$datapath)
-
-    rwtytrees <- list()
-    for (i in 1:length(thintrees())) {
-      trees <- list()
-      trees[[1]] <- thintrees()[[i]]
-      trees[[2]] <- NULL
-      trees[[3]] <- input$treethin
-      names(trees) <- c("trees", "ptable", "gens.per.tree")
-      class(trees) <- "rwty.chain"
-      rwtytrees[[i]] <- trees
-    }
-    rwtytrees
+    prepare.rwty.trees(thintrees(), input$treethin)
   })
-
+ 
+  # generate rwty plots
   rwtyP <- reactive({
     req(treefile$datapath)
-
-    # install if not present
-    validate(
-      need("rwty" %in% rownames(installed.packages()),
-        message = "\nPackage rwty not found! Please install."
-      )
-    )
-
-    library(rwty)
-
-    # set number of processors fo rwty calculations
-    rwty.processors <- input$ncores
-
-    # set theme for all rwty plots
-    theme_rwty <-
-      theme_light() +
-      theme(
-        axis.title = element_text(size = 12 * treescalefactor()),
-        legend.title = element_blank(),
-        axis.text = element_text(size = 11 * treescalefactor()),
-        legend.text = element_text(size = 12 * treescalefactor()),
-        title = element_text(size = 14 * treescalefactor()),
-        strip.text = element_text(size = 12 * treescalefactor(), face = "bold")
-      )
-
-    # Autocorrelation
-    if (input$rwtytype == "Autocorrelation") {
-      autocorplot <- makeplot.autocorr(rwtytrees())
-      autocorplot$autocorr.plot + theme_rwty
-    }
-
-    # Split frequencies
-    else if (input$rwtytype == "Split frequencies") {
-      cumsplitfreq <- makeplot.splitfreqs.cumulative(rwtytrees())
-      slidesplitfreq <- makeplot.splitfreqs.sliding(rwtytrees())
-      grid.arrange(cumsplitfreq$splitfreqs.cumulative.plot + theme_rwty,
-        slidesplitfreq$splitfreqs.sliding.plot + theme_rwty,
-        ncol = 1
-      )
-    }
-
-    # Topology traces
-    else if (input$rwtytype == "Topology trace") {
-      topologyplot <- makeplot.topology(rwtytrees())
-      trace <- topologyplot$trace.plot + theme_rwty
-      dense <- topologyplot$density.plot + theme_rwty
-      grid.arrange(trace, dense, ncol = 1)
-    }
-
-    # Tree space
-    else if (input$rwtytype == "Tree space") {
-      treespaceplot <- makeplot.treespace(rwtytrees())
-      heat <- treespaceplot$treespace.heatmap + theme_rwty
-      point <- treespaceplot$treespace.points.plot + theme_rwty
-      grid.arrange(heat, point, ncol = 1)
-    }
+    rwty.wrapper(input$ncores, treescalefactor(), rwtytrees())
   })
-
+  
+  # and plot 
   output$rwtyPlot <- renderPlot({
     rwtyP()
   })
-
   output$rwtyPlot.ui <- renderUI({
     req(treefile$datapath)
     plotOutput("rwtyPlot", height = treeheight(), width = treewidth())
@@ -1402,8 +979,8 @@ server <- function(input, output, session) {
 
   output$downloadrwtyplot <- downloadHandler(
     filename = "RWTY.pdf",
-    content = function(file3) {
-      pdf(file3, height = input$height / 72, width = input$width / 72)
+    content = function(file6) {
+      pdf(file6, height = input$height / 72, width = input$width / 72)
       grid.arrange(rwtyP(), ncol = 1)
       dev.off()
     }

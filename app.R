@@ -290,8 +290,7 @@ style.table <- function(table, trace.table) {
   return(styled_table)
 }
 
-
-# set tree options and font
+# set tree display options
 set.tree.opts <- function(tree.opts){
   treeopts <- vector()
   if ("align" %in% tree.opts) {
@@ -309,6 +308,7 @@ set.tree.opts <- function(tree.opts){
   return(treeopts)
 }
 
+# set tree label font
 set.tree.font <- function(tree.font){
   treefont <- vector(mode = "numeric")
   if (is.null(tree.font)) {
@@ -329,9 +329,28 @@ set.tree.font <- function(tree.font){
   return(treefont)
 }
 
+# create a dataframe of tip labels
+# first get the tip labels and order them according to their appearance in plot (1= bottom taxon, length(tiplabels)=top taxon)
+# get this info from tree$edge[,2] all numbers < ntaxa(tree) correspond to tip labels, order is as plotted
+get.tip.df <- function(tree){
+  # which edges belong to tips?
+  is_tip <- tree$edge[, 2] <= length(tree$tip.label)
+  
+  # order according
+  ordered_tips <- tree$edge[is_tip, 2]
+  
+  # now just reorder the tip labels,  and add consecutive numbering as 2nd row in that dataframe
+  tips <- as.data.frame(tree$tip.label[ordered_tips])
+  tiporder <- as.data.frame(1:length(tree$tip.label))
+  tipDF <- as.data.frame(cbind(tips, tiporder))
+  names(tipDF) <- c("tips", "tiporder")
+  
+  # call dataframe
+  return(tipDF)
+}
+
 # read trees
 # only update tree format when new files are uploaded
-
 read.treefiles <- function(treefile) {
   if (example$click == 1) {
     treeformat <- "Newick (e.g., Phylobayes)"
@@ -344,7 +363,6 @@ read.treefiles <- function(treefile) {
   if (example$click == 0) {
     treeformat <- input$treefiletype
   }
-
 
   treelist <- list()
 
@@ -384,7 +402,7 @@ thin.trees <- function(treelist, treethin) {
 }
 
 # combine all trees into single multiphylo object
-combine.trees <- function(alltrees) {
+combine.trees <- function(alltrees, burnin) {
   req(treefile$datapath)
   req(length(alltrees()) >= 1)
   treesall <- list()
@@ -392,7 +410,7 @@ combine.trees <- function(alltrees) {
   for (i in 1:length(alltrees)) {
     # get trees
     trees <- alltrees[[i]]
-    trees <- trees[(input$conburnin + 1):length(trees)]
+    trees <- trees[(burnin + 1):length(trees)]
     if (length(treesall) >= 1) {
       treesall <- c(treesall, trees)
     }
@@ -421,6 +439,30 @@ collapse.nodes <- function(con.tree, pp){
   
   # remove support values for collapsed nodes
   contree$node.label[contree$node.label < pp] <- ""
+  
+  # nicer plot if ladderized 
+  contree <- ladderize(contree)
+  
+  return(contree)
+}
+
+# calculate consensus tree
+calc.cons <- function(treelist){
+  # get consensus branch lengths
+  contree <- phytools::consensus.edges(treelist,
+                                       method = "least.squares"
+  )
+  
+  # and count how often the nodes are present in all trees (=pp) and writes this as node labels to the tree
+  sv <- prop.clades(contree, treelist)
+  contree$node.label <- sv / length(treelist)
+  contree$node.label <- formatC(contree$node.label, digits = 2, format = "f") # 2 decimals for pp values
+  
+  # adjust node labels: 1) remove "root" label
+  contree$node.label[contree$node.label == "Root"] <- ""
+  
+  # convert to numeric
+  contree$node.label <- as.numeric(contree$node.label)
   
   return(contree)
 }
@@ -455,6 +497,186 @@ root.tree <- function(con.tree, og){
   return(con.tree)
 }
 
+# render plot
+render.contree <- function(root.tree, high.col, thin.trees, tree.cex, tree.opts, tree.font, tree.annot){
+  
+  # colorvector for tips 
+  col.df <- high.col %>%
+    arrange(factor(V1, levels = root.tree$tip.label))
+  
+  concolvec <- as.vector(col.df$V2)
+  
+  treetot <- sum(unlist(lapply(thin.trees, length)))
+  
+  # plot
+  plot(root.tree,
+       main = paste0(
+         "Consensus of ", treetot - (input$conburnin * length(thin.trees)), " trees", # number of trees
+         " (", length(thin.trees), " chains)"
+       ), # chains
+       cex.main = tree.cex * 1.1,
+       cex = tree.cex,
+       align.tip.label = tree.opts[1],
+       use.edge.length = tree.opts[2],
+       edge.width = tree.cex,
+       label.offset = 0.01,
+       font = tree.font,
+       tip.color = concolvec
+  )
+  nodelabels(
+    text = root.tree$node.label, # some formatting for the pp values
+    frame = "none",
+    adj = 0,
+    cex = tree.cex * 0.8
+  )
+  add.scale.bar(lwd = tree.cex)
+  
+  # add custom plot annotations
+  title(
+    sub = tree.annot,
+    adj = 0,
+    line = 1,
+    font = 2,
+    cex.sub = tree.cex * 0.85
+  )
+  
+}
+
+render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.cex, tree.font, tree.opts, which.tree){
+  
+  validate(
+    need(length(which.tree) > 1,
+         message = "Provide tree files from at least 2 chains to display differences between consensus trees."
+    ),
+    need(!("<Midpoint>" %in% og),
+         message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root."
+    )
+  )
+  
+  # Adjusting plot layout 
+  # change plot layout to 2 columns if 2 treefiles are present
+  if (length(thin.trees) == 2) {
+    par(mfrow = c(1, 2))
+  }
+  
+  # 3 columns if 3 treefiles are present
+  if (length(thin.trees) == 3) {
+    par(mfrow = c(1, 3))
+  }
+  
+  # and 2x2 for 4 treefiles
+  if (length(thin.trees) == 4) {
+    par(mfrow = c(2, 2))
+  }
+  
+  # plot all trees in loop
+  for (i in 1:length(thin.trees)) {
+    
+    # get trees
+    trees <- thin.trees[[i]]
+    
+    # unroot tree if no root was chosen
+    if ("<None>" %in% og) {
+      currtree <- unroot(trees[[tree.generation]])
+    }
+    
+    # midpoint root if chosen
+    if ("<Midpoint>" %in% og) {
+      currtree <- phytools::midpoint.root(trees[[tree.generation]])
+    }
+    
+    # root with outgroup if chosen
+    if (!("<Midpoint>" %in% og) & !("<None>" %in% og)) {
+      validate(
+        need(is.monophyletic(trees[[tree.generation]], og), "The specified outgroup is not monophyletic!")
+      )
+      currtree <- root(trees[[tree.generation]],
+                       outgroup = og,
+                       resolve.root = TRUE
+      )
+    }
+    
+    # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
+    col.df <- high.col %>%
+      arrange(factor(V1, levels = currtree$tip.label))
+    concolvec <- as.vector(col.df$V2)
+    
+    # Plot
+    plot(ladderize(currtree),
+         main = paste(which.tree[i], "iteration", tree.generation),
+         cex = tree.cex,
+         cex.main = tree.cex * 1.1,
+         edge.width = tree.cex,
+         align.tip.label = tree.opts[1],
+         use.edge.length = tree.opts[2],
+         label.offset = 0.01,
+         font = tree.font,
+         tip.color = concolvec
+    )
+    add.scale.bar(lwd = tree.cex)
+  }
+}
+
+render.treediff <- function(thin.trees, all.trees, og, burnin, high.col, tree.cex, tree.font, which.tree){
+  # loop through all trees and create tree list as well as color list
+  contrees <- list()
+  colvecs <- list()
+  
+  for (i in 1:length(thin.trees)) {
+    tree <- thin.trees[[i]]
+    tree <- tree[(burnin + 1):length(tree)]
+    contree <- consensus(tree, p = 0.5)
+    
+    # reroot outgroup
+    if (!("<Midpoint>" %in% og) & !("<None>" %in% og)) {
+      contree <- root(contree, outgroup = og)
+    }
+    
+    # unroot tree
+    if ("<None>" %in% og) {
+      contree <- unroot(contree)
+    }
+    
+    contrees[[i]] <- contree
+    
+    # colorvector
+    
+    col.df <- high.col %>%
+      arrange(factor(V1, levels = contree$tip.label))
+    colvecs[[i]] <- as.vector(col.df$V2)
+  }
+  
+  
+  # change plot layout according to number of chains analysed
+  if (length(all.trees) == 2) {
+    par(mfrow = c(1, 2))
+  }
+  if (length(all.trees) == 3) {
+    par(mfrow = c(3, 2))
+  }
+  if (length(all.trees) == 4) {
+    par(mfrow = c(3, 4))
+  }
+  
+  # this nested loop plots consensus trees side by side, for all combinations in 2, 3, or 4 trees
+  for (i in 1:length(thin.trees)) {
+    for (j in i:length(thin.trees)) {
+      if (i != j) {
+        phylo.diff.new(contrees[[i]], contrees[[j]],
+                       cex = tree.cex,
+                       cex.main = tree.cex * 1.1,
+                       label.offset = 0.01,
+                       font = tree.font,
+                       main1 = which.tree[i],
+                       main2 = which.tree[j],
+                       coltip1 = colvecs[[i]],
+                       coltip2 = colvecs[[j]]
+        )
+      }
+    }
+  }
+}
+
 # function that plots 2 trees next to each other and highlights differences
 # modified from http://blog.phytools.org/
 phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
@@ -472,3 +694,255 @@ phylo.diff.new <- function(x, y, main1, main2, coltip1, coltip2, ...) {
   plot(y, edge.color = treeB.cs, main = main2, tip.color = coltip2, edge.width = treeB.lw, align.tip.label = TRUE, direction = "leftwards", ...)
   invisible()
 }
+
+# Plot to display RF distances within and between chains
+render.rfplot <- function(thin.trees, burnin, which.tree, tree.cex, tree.scalefactor){
+  rflist <- list()
+  for (i in 1:length(thin.trees)) {
+    tree <- thin.trees[[i]]
+    tree <- tree[(burnin + 1):length(tree)]
+    rf <- vector(mode = "numeric")
+    
+    rf <- foreach(j = 2:length(tree), .packages = "ape", .combine = c) %dopar% {
+      rf[j - 1] <- dist.topo(tree[j - 1], tree[j])
+    }
+    
+    x <- (2 + burnin):(length(tree) + burnin)
+    
+    RFdf <- as.data.frame(cbind(x, rf))
+    RFdf$chain <- paste("Iteration n vs. Iteration (n-1),", which.tree[i])
+    rflist[[i]] <- RFdf
+  }
+  
+  RFdf <- do.call("rbind", rflist)
+  RFdf$difference <- "Tree distance within chain"
+  
+  # results vector
+  if (length(thin.trees) > 1) {
+    rflist3 <- list()
+    counter <- 0
+    
+    for (h in 1:length(thin.trees)) {
+      tree1 <- thin.trees[[h]]
+      tree1 <- tree1[(burnin + 1):length(tree1)]
+      for (j in h:length(thin.trees)) {
+        if (h != j) {
+          counter <- counter + 1
+          tree2 <- thin.trees[[j]]
+          tree2 <- tree2[(burnin + 1):length(tree2)]
+          minlength <- min(c(length(tree1), length(tree2)))
+          
+          rf <- foreach(k = 1:minlength, .packages = "ape", combine = c) %dopar% {
+            dist.topo(tree1[[k]], tree2[[k]])
+          }
+          
+          x <- (1 + burnin):(length(rf) + burnin)
+          
+          RFdf3 <- as.data.frame(cbind(x, rf))
+          RFdf3$chain <- paste(which.tree[h], which.tree[j], sep = " vs. ")
+          rflist3[[counter]] <- RFdf3
+        }
+      }
+    }
+    
+    RFdf3 <- do.call("rbind", rflist3)
+    RFdf3 <- as.data.frame(lapply(RFdf3, unlist))
+    RFdf3$difference <- "Tree distance between chains"
+    
+    RFdf <- rbind(RFdf, RFdf3)
+  }
+  
+  RFggplot <- ggplot(data = RFdf, aes(x = x, y = rf, color = chain)) +
+    geom_line(size = tree.cex / 2) +
+    theme_light() +
+    facet_wrap(~difference, nrow = 2, scales = "free_y") +
+    xlab("Tree generation") +
+    ylab("Robinson-Foulds distance") +
+    theme(
+      axis.title = element_text(size = 12 * tree.scalefactor),
+      legend.title = element_blank(),
+      legend.spacing.x = unit(0.2, "cm"),
+      axis.text = element_text(size = 11 * tree.scalefactor),
+      legend.position = "bottom",
+      legend.direction = "vertical",
+      legend.text = element_text(size = 12 * tree.scalefactor),
+      strip.text = element_text(size = 14 * tree.scalefactor, face = "bold")
+    ) +
+    scale_color_manual(values = c(
+      "#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
+      "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"
+    ))
+  return(RFggplot)
+}
+
+# calculate bipartition support for any clade 
+calc.bpsupport <- function(selected.tax, tip.names, thin.trees, which.tree, burnin){
+  validate(
+    need(length(selected.tax) > 1,
+         message = "Please chose at least two taxa! Note that entering taxon names into the field will overwrite any selection from the drop-down menu."
+    ),
+    need(length(intersect(selected.tax, tip.names)) == length(selected.tax),
+         message = "Not all taxon name(s) are present in tree. Please check."
+    )
+  )
+  
+  if (length(thin.trees) > 1) {
+    req(length(which.tree) > 0)
+  }
+  
+  # read in trees in loop
+  treesall <- list()
+  for (i in 1:length(thin.trees)) {
+    # get trees
+    trees <- thin.trees[[i]]
+    trees <- trees[(burnin + 1):length(trees)]
+    if (i == 1) {
+      treesall <- trees
+    } else {
+      treesall <- c(treesall, trees)
+    }
+  }
+  
+  selectedtax <- selected.tax
+  
+  # check if taxa from the list are monophyletic (for whole list of trees)
+  bpcount <- vector()
+  bpcount <- foreach(
+    i = 1:length(treesall),
+    .packages = "ape",
+    combine = c,
+    .inorder = FALSE
+  ) %dopar% {
+    is.monophyletic(treesall[[i]], selected.tax)
+  }
+  
+  # count number of "TRUE"
+  monotrue <- sum(unlist(bpcount))
+  monotrue <- as.numeric(monotrue)
+  
+  # summarize results in list
+  bpsupport <- list(
+    absolute = monotrue, # in how many trees is the group monophyletic
+    relative = formatC(monotrue / length(treesall) * 100,
+                       digits = 2, format = "f"
+    ), # in percent
+    total = length(bpcount) # how many trees were analysed
+  )
+  
+  return(bpsupport)
+}
+
+# simple plot of relationships tested
+render.bipartplot <- function(tip.names, selected.tax){
+  # get all tipnams, the ones that were selected and extract the non selected ones
+  alltips <- tip.names
+  selecttips <- selected.tax
+  inverttips <- alltips[!alltips %in% selecttips]
+  
+  # this adds parentheses and commas to all selected and non-selected tip names s
+  str1 <- paste("(", selecttips, "),", sep = "", collapse = "")
+  str1 <- substr(str1, 1, nchar(str1) - 1)
+  str2 <- paste("(", inverttips, "),", sep = "", collapse = "")
+  str2 <- substr(str2, 1, nchar(str2) - 1)
+  
+  # to create newick tree, add paretheses around each monophyletic group and final semicolon
+  bipartition <- paste0("(", str2, "),", "(", str1, ");")
+  
+  # read tree string
+  bipartition_plot <- read.newick(text = bipartition)
+  
+  # make all edge lengths equal (improves display)
+  bipartition_plot$edge.length <- rep(1, length(bipartition_plot$edge / 2))
+  
+  # Highlight the edges connecting selected trees in pink
+  edge.highlight <- which.edge(bipartition_plot, selecttips)
+  edgecolor <- rep("black", Nedge(bipartition_plot))
+  edgecolor[edge.highlight] <- "#FF1493"
+  
+  # Also, increase edge width
+  edgewidth <- rep(1, Nedge(bipartition_plot))
+  edgewidth[edge.highlight] <- 2
+  
+  # and plot
+  p <- plot(bipartition_plot,
+       type = "phylogram",
+       cex = input$treecex,
+       edge.color = edgecolor,
+       edge.width = edgewidth * input$treecex
+  )
+  return(p)
+}
+
+# reformat trees for rwty
+prepare.rwty.trees <- function(thin.trees, treethin){
+  rwtytrees <- list()
+  for (i in 1:length(thin.trees)) {
+    trees <- list()
+    trees[[1]] <- thin.trees[[i]]
+    trees[[2]] <- NULL
+    trees[[3]] <- treethin
+    names(trees) <- c("trees", "ptable", "gens.per.tree")
+    class(trees) <- "rwty.chain"
+    rwtytrees[[i]] <- trees
+  }
+  return(rwtytrees)
+}
+
+# wrapper for all rwty plots
+rwty.wrapper <- function(ncores, tree.scalefactor, rwty.trees){
+  # install if not present
+  validate(
+    need("rwty" %in% rownames(installed.packages()),
+         message = "\nPackage rwty not found! Please install."
+    )
+  )
+  library(rwty)
+  
+  # set number of processors fo rwty calculations
+  rwty.processors <- ncores
+  
+  # set theme for all rwty plots
+  theme_rwty <-
+    theme_light() +
+    theme(
+      axis.title = element_text(size = 12 * tree.scalefactor),
+      legend.title = element_blank(),
+      axis.text = element_text(size = 11 * tree.scalefactor),
+      legend.text = element_text(size = 12 * tree.scalefactor),
+      title = element_text(size = 14 * tree.scalefactor),
+      strip.text = element_text(size = 12 * tree.scalefactor, face = "bold")
+    )
+  
+  # Autocorrelation
+  if (input$rwtytype == "Autocorrelation") {
+    autocorplot <- makeplot.autocorr(rwty.trees)
+    autocorplot$autocorr.plot + theme_rwty
+  }
+  
+  # Split frequencies
+  else if (input$rwtytype == "Split frequencies") {
+    cumsplitfreq <- makeplot.splitfreqs.cumulative(rwty.trees)
+    slidesplitfreq <- makeplot.splitfreqs.sliding(rwty.trees)
+    grid.arrange(cumsplitfreq$splitfreqs.cumulative.plot + theme_rwty,
+                 slidesplitfreq$splitfreqs.sliding.plot + theme_rwty,
+                 ncol = 1
+    )
+  }
+  
+  # Topology traces
+  else if (input$rwtytype == "Topology trace") {
+    topologyplot <- makeplot.topology(rwty.trees)
+    trace <- topologyplot$trace.plot + theme_rwty
+    dense <- topologyplot$density.plot + theme_rwty
+    grid.arrange(trace, dense, ncol = 1)
+  }
+  
+  # Tree space
+  else if (input$rwtytype == "Tree space") {
+    treespaceplot <- makeplot.treespace(rwty.trees)
+    heat <- treespaceplot$treespace.heatmap + theme_rwty
+    point <- treespaceplot$treespace.points.plot + theme_rwty
+    grid.arrange(heat, point, ncol = 1)
+  }
+}
+
