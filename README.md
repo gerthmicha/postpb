@@ -46,7 +46,7 @@ A command line version of the app with reduced functionality can be found on [gi
 ## Quick start 
 There are two modules in *postpb*, accessible through the tabs in the navbar on top of this page: **Traces** and **Trees**. Global options can be found on the sidebar on the left, and options specific for each analysis type will be in the main window. Usage is fairly self-explanatory. For a quick start, load one of the examples (see below), and click through the interface to explore the different plots and statistics.   
 
-## Tutorial
+## Manual
 
 A detailed tutorial can be found [here](https://gerthmicha.github.io/postpb/). 
 
