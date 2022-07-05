@@ -262,8 +262,7 @@ ui <- fluidPage(
                          )
                        )
                    )
-            ),
-            downloadButton("downloadtreePDF", "Download pdf of current tree plot")
+            )
           )
         ),
         column(
@@ -282,43 +281,51 @@ ui <- fluidPage(
                             step = 0.05,
                             ticks = FALSE
                 ),
-                hr()
-              ),
-              uiOutput("consensusPlot.ui"),
-              br(),
-              conditionalPanel(
-                condition = "output.consensusPlot",
+                downloadButton("consensusPDF", "Download tree as pdf",
+                               style = "padding:5px 10px; font-size:90%; background-color:white; color:black"),
                 downloadButton("newick",
                                "Export tree in newick format",
                                style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
-                )
+                ),
+                hr()
               ),
+              uiOutput("consensusPlot.ui"),
               br()
             ),
             tabPanel(
               "Trees",
               uiOutput("treegens"),
-              conditionalPanel(condition = "output.treegens", hr()),
+              conditionalPanel(condition = "output.treegens", 
+                               downloadButton("singletreePDF", "Download current trees as pdf",
+                                              style = "padding:5px 10px; font-size:90%; background-color:white; color:black"),
+                               hr()),
               uiOutput("treePlot.ui")
             ),
             tabPanel(
               "Difference",
+              br(),
+              conditionalPanel(condition = "output.differencePlot", 
+                               downloadButton("differencePDF", "Download comparison as pdf",
+                                              style = "padding:5px 10px; font-size:90%; background-color:white; color:black")
+                               ),
+              br(),
               uiOutput("differencePlot.ui"),
               br(),
               helpText(HTML("Conflicting nodes between consensus trees will be highlighted in <font color=\"#FF1493\"><b>pink</b></font>."))
             ),
             tabPanel(
               "Pairwise Robinson-Foulds",
-              uiOutput("rfPlot.ui"),
               br(),
               conditionalPanel(
                 condition = "output.rfPlot",
                 downloadButton("downloadrfplot",
                                "Download plot as pdf",
                                style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
+                               )
                 ),
-                br()
-              ),
+                br(),
+              uiOutput("rfPlot.ui"),
+                br(),
               helpText("Calculation of pairwise RF distances can be computationally intensive. Reduce the number of considered trees to speed this up.")
             ),
             tabPanel(
