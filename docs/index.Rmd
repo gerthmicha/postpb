@@ -15,6 +15,12 @@ After installing and starting *postpb* as described [here](https://github.com/ge
 
 Similar to a regular website, *postpb* is organised in multiple pages (panels) which which can be accessed by clicking on the tabs on the very top the the screen ('Parameters', 'Trees', 'About'). While the latter contains some general information, the former 2 are where the analyses happen. Note that the panels are completely independent of each other, meaning that you can use one or both, and that you don't necessarily need to provide data from the same runs to both panels (although this is the typical use case).
 
+# Example files
+
+**Example 1** is taken from [Kocot et al. (2017)](https://doi.org/10.1093/sysbio/syw079), and contains the first 5,000 iterations of their *Phylobayes* analysis of the "LB_106" matrix under the CAT+GTR model. The example contains traces and trees for 4 chains. This is an example for a run that can be considered unsuccessful. Neither tree topologies nor trace samples show appropriate convergence and mixing.  
+
+**Example 2** is a *MrBayes* analysis of the "primates" alignment that is distributed with *MrBayes* (https://github.com/NBISweden/MrBayes/tree/develop/examples) and is originally from [Hayasaka et al. (1988)](https://doi.org/10.1093/oxfordjournals.molbev.a040524). The analysis was run under a HKY+G model using 2x4 chains for 1,000,000 generations with a sampling frequency of 50. This is an example for a run that was successful. Tree and trace samples are mostly converged and well mixed. 
+
 # File formats
 
 When you start the app, you will likely have data from a Bayesian phylogenetic analysis. Typically, this would be 
@@ -33,7 +39,7 @@ Examples of all file types can be found in [the example folder](https://github.c
 
 When you start the app, the 'Parameters' tab will open automatically. You will notice that there is a side panel to the left, and a main display area to the right. The main display carries 4 tabs ('Traces', 'Violin', 'Density', 'Summary statistics'). The side panel is where you find all of the global options and settings, i.e., the settings that apply to each of the plots.
 
-To get to know the app, it makes sense to use one of the examples. Click 'Load example 1' and wait for a plot to appear.
+To get to know the app, it makes sense to use one of the examples. Click 'Load example 1' and wait for a plot to appear. Alternatively, upload your own data through the interface. 
 
 ## Sidebar
 
@@ -55,7 +61,15 @@ Access the parameter plots by clicking through the different panels of the main 
 
 -   **Violin** & **Density** - these very similar plots show the distribution of your parameters in the post-burnin sample. The plots are especially helpful in determining how similar the different chains are compared with each other.
 
-- **Summary statistics** - here, the data is summarised once more using descriptive statistics. Click on the 'Toggle explanations' button to learn a bit about the different values and what they may mean for the interpretation of the run. For documentation purposes, all values can be copied to the clipboard (e.g., to paste them into a spreadsheet application), downloaded as `.csv` file or printed from the browser.  
+- **Summary statistics** - here, the data is summarised once more using descriptive statistics. Click on the 'Toggle explanations' button to learn a bit about the different values and what they may mean for the interpretation of the run. For documentation purposes, the table of values can be copied to the clipboard (e.g., to paste them into a spreadsheet application), downloaded as `.csv` file or printed from the browser.  
 
 
 # The Trees tab
+
+Access the trees tab through the panel at the very top of the page. Again, using one of the examples is probably a good way of trying out the app. Alternatively, upload your tree files after selecting the appropriate file format. Once you uploaded tree data, *postpb* will begin calculating a consensus tree. Depending on the number of your trees, this may take some time. A popup will remind you to be patient here. 
+
+Before checking out the tree, familiarise yourself with the global options (panel on the left). Much of this is very similar to the traces tab:
+
+* **Burnin** & **Select trace files** - do exactly what they do in the traces tab.
+* **Number of cores** - some of the most intense computations benefit from parallelisation. *postpb* will automatically detect the number of cores available on your machine and select one core fewer than the maximum number. Choose a lower value if you run many other processes parallel to *postpb* (but be prepared it may then take longer to run).
+* 

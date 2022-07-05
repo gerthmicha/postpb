@@ -7,7 +7,7 @@
 
         <meta name="author" content="Michael Gerth" />
     
-        <meta name="date" content="2022-06-10" />
+        <meta name="date" content="2022-07-04" />
     
     <title>[Work in progress] postpb tutorial</title>
 
@@ -1454,6 +1454,7 @@ tutorial</li>
         <nav role="navigation" id="toc">
           <ul>
           <li><a href="#orientation">Orientation</a></li>
+          <li><a href="#example-files">Example files</a></li>
           <li><a href="#file-formats">File formats</a></li>
           <li><a href="#the-parameters-tab">The Parameters tab</a>
           <ul>
@@ -1467,7 +1468,7 @@ tutorial</li>
           <li class="divider"></li>
                                 <li><span><i class="glyphicon glyphicon-user"></i> Michael
 Gerth</span></li>
-                                         <li><span><i class="glyphicon glyphicon-calendar"></i> 2022-06-10</span></li>
+                                         <li><span><i class="glyphicon glyphicon-calendar"></i> 2022-07-04</span></li>
                   </ul>     
       </div>
       <div class="book-body fixed">
@@ -1505,6 +1506,20 @@ where the analyses happen. Note that the panels are completely
 independent of each other, meaning that you can use one or both, and
 that you don’t necessarily need to provide data from the same runs to
 both panels (although this is the typical use case).</p>
+</div>
+<div id="example-files" class="section level1">
+<h1>Example files</h1>
+<p><strong>Example 1</strong> is taken from <a href="https://doi.org/10.1093/sysbio/syw079">Kocot et al. (2017)</a>,
+and contains the first 5,000 iterations of their <em>Phylobayes</em>
+analysis of the “LB_106” matrix under the CAT+GTR model. The example
+contains traces and trees for 4 chains. <strong>This is an example for a
+run that can be considered unsuccessful!</strong></p>
+<p><strong>Example 2</strong> is a <em>MrBayes</em> analysis of the
+“primates” alignment that is distributed with <em>MrBayes</em> (<a href="https://github.com/NBISweden/MrBayes/tree/develop/examples" class="uri">https://github.com/NBISweden/MrBayes/tree/develop/examples</a>)
+and is originally from <a href="https://doi.org/10.1093/oxfordjournals.molbev.a040524">Hayasaka et
+al. (1988)</a>. The analysis was run under a HKY+G model using 2x4
+chains for 1,000,000 generations with a sampling frequency of 50.
+<strong>This is an example for a run that was successful.</strong></p>
 </div>
 <div id="file-formats" class="section level1">
 <h1>File formats</h1>
@@ -1544,7 +1559,8 @@ display area to the right. The main display carries 4 tabs (‘Traces’,
 find all of the global options and settings, i.e., the settings that
 apply to each of the plots.</p>
 <p>To get to know the app, it makes sense to use one of the examples.
-Click ‘Load example 1’ and wait for a plot to appear.</p>
+Click ‘Load example 1’ and wait for a plot to appear. Alternatively,
+upload your own data through the interface.</p>
 <div id="sidebar" class="section level2">
 <h2>Sidebar</h2>
 <p>In the sidebar to the left, the following global options (i.e.,
@@ -1596,15 +1612,36 @@ similar the different chains are compared with each other.</p></li>
 <li><p><strong>Summary statistics</strong> - here, the data is
 summarised once more using descriptive statistics. Click on the ‘Toggle
 explanations’ button to learn a bit about the different values and what
-they may mean for the interpretation of the run. All values can be
-copied to the clipboard (e.g., to paste them into a spreadsheet
-application), downloaded as <code>.csv</code> file or printed from the
-browser.</p></li>
+they may mean for the interpretation of the run. For documentation
+purposes, the table of values can be copied to the clipboard (e.g., to
+paste them into a spreadsheet application), downloaded as
+<code>.csv</code> file or printed from the browser.</p></li>
 </ul>
 </div>
 </div>
 <div id="the-trees-tab" class="section level1">
 <h1>The Trees tab</h1>
+<p>Access the trees tab through the panel at the very top of the page.
+Again, using one of the examples is probably a good way of trying out
+the app. Alternatively, upload your tree files after selecting the
+appropriate file format. Once you uploaded tree data, <em>postpb</em>
+will begin calculating a consensus tree. Depending on the number of your
+trees, this may take some time. A popup will remind you to be patient
+here.</p>
+<p>Before checking out the tree, familiarise yourself with the global
+options (panel on the left). Much of this is very similar to the traces
+tab:</p>
+<ul>
+<li><strong>Burnin</strong> &amp; <strong>Select trace files</strong> -
+do exactly what they do in the traces tab.</li>
+<li><strong>Number of cores</strong> - some of the most intense
+computations benefit from parallelisation. <em>postpb</em> will
+automatically detect the number of cores available on your machine and
+select one core fewer than the maximum number. Choose a lower value if
+you run many other processes parallel to <em>postpb</em> (but be
+prepared it may then take longer to run).</li>
+<li></li>
+</ul>
 </div>
 
    
