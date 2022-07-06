@@ -19,7 +19,7 @@ read.trace <- function(tracefile, chain.names) {
     )
     # add chain name as parameter
     tracefilelist <- Map(cbind, tracefilelist, trace = chain.names)
-    lapply(tracefilelist, tibble::as_tibble)
+    lapply(tracefilelist, as.data.frame)
   })
 }
 
@@ -27,6 +27,7 @@ read.trace <- function(tracefile, chain.names) {
 thin.trace <- function(trace, trace.thin) {
   trace <- trace[seq(from = 0, to = nrow(trace), by = trace.thin), ]
   trace <- select(trace, -matches("time|topo"))
+  return(trace)
 }
 
 # remove burnin from trace
@@ -127,20 +128,6 @@ densityplot <- function(traceDF, trace.colors, trace.theme, facet.col) {
     trace.theme +
     theme(axis.text.y = element_blank())
   return(dP1)
-}
-
-# render plots
-render.traceplots <- function(traceplot) {
-  traceplot.ui <- renderUI({
-    shinycssloaders::withSpinner(
-    plotOutput(traceplot,
-      height = input$height,
-      width = input$width
-    ),
-    color = "#2C4152", size = 0.5
-    )
-  })
-  return(traceplot.ui)
 }
 
 # Big function to calculate all of the summary statistics
@@ -403,8 +390,8 @@ thin.trees <- function(treelist, treethin) {
 
 # combine all trees into single multiphylo object
 combine.trees <- function(alltrees, burnin) {
-  req(treefile$datapath)
-  req(length(alltrees()) >= 1)
+  #req(treefile$datapath)
+  req(length(alltrees) >= 1)
   treesall <- list()
   class(treesall) <- "multiPhylo"
   for (i in 1:length(alltrees)) {

@@ -200,7 +200,12 @@ server <- function(input, output, session) {
   output$tracePlot <- renderPlot({
     tP()
   })
-  output$tracePlot.ui <- render.traceplots("tracePlot")
+  output$tracePlot.ui <- renderUI({
+    shinycssloaders::withSpinner(plotOutput("tracePlot",
+                                            height = input$height,
+                                            width = input$width),
+                                 color = "#2C4152", size = 0.5)
+    })
 
   #| # Tab 2 (Violin) -----
   vP <- reactive({
@@ -209,7 +214,12 @@ server <- function(input, output, session) {
   output$violinPlot <- renderPlot({
     vP()
   })
-  output$violinPlot.ui <- render.traceplots("violinPlot")
+  output$violinPlot.ui <- renderUI({
+    shinycssloaders::withSpinner(plotOutput("violinPlot",
+                                            height = input$height,
+                                            width = input$width),
+                                 color = "#2C4152", size = 0.5)
+  })
 
   #| # Tab 3 (Density) -----
   # density plot for traces
@@ -219,7 +229,12 @@ server <- function(input, output, session) {
   output$densePlot <- renderPlot({
     dP()
   })
-  output$densePlot.ui <- render.traceplots("densePlot")
+  output$densePlot.ui <- renderUI({
+    shinycssloaders::withSpinner(plotOutput("densePlot",
+                                            height = input$height,
+                                            width = input$width),
+                                 color = "#2C4152", size = 0.5)
+  })
 
   # Create pdf download handle for plots
   output$downloadPDF <- downloadHandler(
