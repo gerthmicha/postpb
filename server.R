@@ -26,7 +26,7 @@ server <- function(input, output, session) {
   observeEvent(input$tracefile, {
     tracefile$datapath <- input$tracefile$datapath
     tracefile$name <- input$tracefile$name
-  })
+  }) 
 
   # if 'example 1' button is pressed, load example 1 from example folder
   observeEvent(input$exampletrace1, {
@@ -314,9 +314,7 @@ server <- function(input, output, session) {
 
     # only update tree format when new files are uploaded
     input$treefile
-    isolate(treeformat <- input$treefiletype)
-
-    read.treefiles(treefile)
+    isolate(read.treefiles(treefile))
   })
 
   alltrees <- reactive({
