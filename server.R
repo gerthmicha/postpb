@@ -648,8 +648,8 @@ server <- function(input, output, session) {
     highcol$df <- highcol$df %>%
       mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
   })
-
-
+  
+  
   #| # Tab 1 (Consensus) -----
   # Plot 1 is a consensus plot
 
@@ -688,7 +688,7 @@ server <- function(input, output, session) {
   })
 
   # now render consensus plot
-  consensusplot<- reactive({
+  consensusplot <- reactive({
     req(highcol$df)
     req(roottree())
     render.contree(roottree(), highcol$df, thintrees(), input$treecex, treeopts(), treefont(), input$annot)
