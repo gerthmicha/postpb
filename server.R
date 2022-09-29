@@ -26,7 +26,7 @@ server <- function(input, output, session) {
   observeEvent(input$tracefile, {
     tracefile$datapath <- input$tracefile$datapath
     tracefile$name <- input$tracefile$name
-  })
+  }) 
 
   # if 'example 1' button is pressed, load example 1 from example folder
   observeEvent(input$exampletrace1, {
@@ -314,9 +314,7 @@ server <- function(input, output, session) {
 
     # only update tree format when new files are uploaded
     input$treefile
-    isolate(treeformat <- input$treefiletype)
-
-    read.treefiles(treefile)
+    isolate(read.treefiles(treefile))
   })
 
   alltrees <- reactive({
@@ -650,8 +648,8 @@ server <- function(input, output, session) {
     highcol$df <- highcol$df %>%
       mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
   })
-
-
+  
+  
   #| # Tab 1 (Consensus) -----
   # Plot 1 is a consensus plot
 
@@ -690,7 +688,7 @@ server <- function(input, output, session) {
   })
 
   # now render consensus plot
-  consensusplot<- reactive({
+  consensusplot <- reactive({
     req(highcol$df)
     req(roottree())
     render.contree(roottree(), highcol$df, thintrees(), input$treecex, treeopts(), treefont(), input$annot)

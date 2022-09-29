@@ -355,7 +355,7 @@ read.treefiles <- function(treefile) {
 
   for (i in 1:length(treefile$datapath)) {
     treepath <- treefile$datapath[i]
-    if (treeformat == "Newick (e.g., Phylobayes)") {
+     if (treeformat == "Newick (e.g., Phylobayes)") {
       firstline <- readLines(treepath, n = 1)
       validate(
         # add very simple check to make sure file IS NOT nexus format
