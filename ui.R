@@ -196,7 +196,7 @@ ui <- fluidPage(
               column(3, 
                      conditionalPanel(
                        condition = "output.highlight",
-                       colourpicker::colourInput("high1", "Colour", value = "#2196F3", palette = "limited", showColour = "background",
+                       colourpicker::colourInput("high1", "Colour", value = "#000000", palette = "limited", showColour = "background",
                                                  allowedCols = c("#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", 
                                                                  "#2196f3", "#03a9f4", "#00bcd4", "#009688", "#4caf50",
                                                                  "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800", 
