@@ -75,7 +75,9 @@ Before checking out the tree, familiarise yourself with the global options (pane
 
 After loading an example or results files, a consensus tree will be generated and displayed in the main panel area. The tree can now be modified through various means.
 
-**Rooting |** The consensus tree can be midpoint rooted by clicking 'midpoint rooting'. Alternatively, the outgroup taxa can be selected in the dropdown menu in the sidebar ('Select outgroups for rooting') and clicking 'Reroot with outgroup' after the selecting is complete. Interactive rooting is also supported: Click and drag the mouse around the taxa that you which to use as outgroups. When releasing the mouse button, confirm in the popup that you wish to use these taxa for rooting and finally, apply the rooting by clicking 'Reroot with outgroup'. See interactive rooting in action below.
+> Any alterations made here will be applied to all subsequent tree plots in the other tabs as well. 
+
+**Rooting |** The consensus tree can be midpoint rooted by clicking 'midpoint rooting'. Alternatively, the outgroup taxa can be selected in the dropdown menu in the sidebar ('Select outgroups for rooting') and clicking 'Reroot with outgroup' after the selecting is complete. Interactive rooting is also supported: Click and drag the mousepointer around outgroup taxa. When releasing the mouse button, confirm in the popup that you wish to use these taxa for rooting and finally, apply the rooting by clicking 'Reroot with outgroup'. See interactive rooting in action below.
 
 ```{r Fig. 1, echo=FALSE, fig.align='center', fig.cap="*Interactive rooting in postpb.*", out.width="90%", }
 knitr::include_graphics("web/rooting.gif")
@@ -85,7 +87,8 @@ knitr::include_graphics("web/rooting.gif")
 
 **Highlighting taxa |** Highlighting specific taxa works very similarly to rooting the tree: You can specify which taxa to be highlight using the dropdown menu in the sidebar ('Select taxa to highlight'). Alternatively, you can interactively highlight multiple taxa. 
 
-> NOTE: When using multiple colours, you need to first select the taxa to highlight, and then the colour to use. This is demonstrated below. 
+> When using multiple colours, you need to first select the taxa to highlight, and then the colour to use. This is demonstrated below. 
+
 
 ```{r Fig. 2, echo=FALSE, fig.align='center', fig.cap="*Interactive highlighting in postpb.*", out.width="90%", }
 knitr::include_graphics("web/highlighting.gif")
