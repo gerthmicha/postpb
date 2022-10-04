@@ -1,5 +1,5 @@
 ---
-title: "[Work in progress] *postpb* tutorial"
+title: "*postpb* manual"
 date: "`r Sys.Date()`"
 author: "Michael Gerth"
 output:
@@ -7,7 +7,7 @@ output:
     highlight: kate
 ---
 
-This tutorial will guide you through *postpb* usage by explaining each of the panels in the app and their main functions.
+This manual will guide you through *postpb* usage by explaining each of the panels in the app and their main functions.
 
 # Orientation
 
@@ -31,7 +31,7 @@ Examples of these file types can be found in [the example folder](https://github
 
 # Examples
 
-The examples were specifically chosen to illustrate a 'good' Phylobayes run (good mixing of chains, convergence between and within chains achieved, no topological conflict, **Example 2**) and a run that was not successful (**Example 1**). To familiarise yourself with the app, please have a look at the examples first.
+The examples were specifically chosen to illustrate a 'good' Phylobayes run (good mixing of chains, convergence between and within chains achieved, no topological conflict, **Example 2**), and a run that was not successful (**Example 1**). To familiarise yourself with the app, please have a look at the examples first.
 
 # The Parameters tab
 
@@ -55,7 +55,7 @@ In the sidebar to the left, the following global options (i.e., applying to all 
 
 Access the parameter plots by clicking through the different panels of the main display. Alter the global options (e.g., burnin and sampling frequency) to see how that affects descriptive plots and statistics.
 
--   **Trace** - generates simple scatter plots of all variables over iteration of the analysis. This is a very common way of displaying results of a Bayesian analysis and is helpful in determining suitable burnin sizes and in assessing chain convergence and mixing. You can choose to have the scatter plots in lines, points, or both. Play around with the burnin slider and observe how the plot changes. Ideally, a trace plot should look like a 'fat caterpillar' (have a look at **Example 2**) - this indicates good mixing, i.e., the chain is exploring the parameter space well (successive steps don't stay on the same value for very long and don't follow only a single direction).
+-   **Trace** - generates simple scatter plots of all variables over iteration of the analysis. This is a very common way of displaying results of a Bayesian analysis and is helpful in determining suitable burnin sizes and in assessing chain convergence and mixing. You can choose to have the scatter plots in lines, points, or both. Play around with the burnin slider and observe how the plot changes. Ideally, a trace plot should look like a 'hairy caterpillar' (have a look at **Example 2**) - this indicates good mixing, i.e., the chain is exploring the parameter space well (successive steps don't stay on the same value for very long and don't follow only a single direction).
 
 -   **Violin** & **Density** - these very similar plots show the distribution of your parameters in the post-burnin sample. The plots are especially helpful in determining how similar the different chains are compared with each other. Ideally, you'd want the shape of these plots to be very similar between independent chains. Large differences in the distributions indicate poor convergence between chains.
 
@@ -95,3 +95,33 @@ knitr::include_graphics("web/highlighting.gif")
 ```
 
 
+**Other display options & export |** In the sidebar, under 'More options' you can change the appearance of the tip labels (bold, italics, aligned), the overall size of the plot, and the relative size of labels and lines. There is also support for some very basic tree annotations: simply add your notes to into the text box, and they will appear directly underneath the consensus tree support (similar to a figure legend). Only unformatted text can be displayed. Once happy with the layout of the tree, you can export the plot using the 'Download tree as pdf' button. The tree can also be downloaded in newick format.
+
+
+## Single generation tree display
+
+In the 'Trees' tab, you can display every tree from all chains for each generation. There is also an option to automatically move on to the next tree every few seconds (use the 'PLAY' button). This is not so much an objective analysis, but can be informative to learn about the different topologies explored in the posterior sample. This is especially instructive after having highlighted a few clades in you consensus tree – you can then check to see e.g., how the composition of certain clades change over time. 
+
+## Consensus trees of individual chains 
+
+Independent chains of your run may result in different topologies. Especially for trees with many taxa, it may be cumbersome to identify conflicting nodes by hand. The 'Difference' tab will display all possible comparisons between consensus trees of all chains. Clades that differ in the pairwise comparisons will be highlighted in bright pink to allow easier identification. 
+
+## Tree distances within and between chains
+
+The tab 'Pairwise Robinson-Foulds' shows how similar the trees of the posterior sample are in the course of the analyses. The first plot shows pairwise Robinson-Foulds (RF) distances between trees from different chains for every generation. The expectation for a good run would be that after a burnin period, the distances between the chains should be small and relatively constant. The plot below also shows RF distances, but for subsequent trees of the same chain. Again, the expectation would be that the line here is ~ 0 in the posterior sample. If RF values in this plot vary a lot over the course of the analysis, the may indicate a lack of convergence.    
+
+> Calculating RF distances is computationally demanding. Reduce the number of trees here if you experience big delays. 
+
+## Check for clades of interest
+
+All nodes or bipartitions that are found in at least 50% of the post-burnin trees will be displayed in the consensus tree. However, sometimes you may wish to know how often other bipartitions are found in the dataset. This may be e.g., groupings that were recovered by alternative approaches but are not found in your consensus tree. You can use the 'Bipartion support' tab to check if such lineages are entirely absent or potentially present in a large minority of the posterior sample. Provide the names of the taxa to check either through the text box or by selecting the tip names in the dropdown menu, and click 'Submit' to display the frequency of the bipartition.  
+
+## RWTY
+
+*postpb* provides an interface for some functions of the RWTY package that are helpful for posterior assessment of Bayesian phylogenetic analyses. It would be beyond the scope of this manual to explain the functions of this package, and it would also be redundant: there is an [excellent vignette](http://danwarren.net/plot-comparisons.html) that you should check out should you wish to use these functions. I especially recommend RWTY when after analysing your Bayesian phylogenetics run with *postpb* you are still unclear of what has happened with the run. 
+
+
+
+
+
+# [TODO: An example analysis with *postpb*]
