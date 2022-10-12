@@ -610,10 +610,12 @@ render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.c
 }
 
 render.treediff <- function(thin.trees, all.trees, og, burnin, high.col, tree.cex, tree.font, which.tree){
+  
   validate(
-    need(!("<Midpoint>" %in% og)),
+    need(!("<Midpoint>" %in% og),
     message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root!"
-  )
+  ))
+  
   # loop through all trees and create tree list as well as color list
   contrees <- list()
   colvecs <- list()
