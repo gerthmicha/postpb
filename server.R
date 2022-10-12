@@ -763,11 +763,6 @@ server <- function(input, output, session) {
   # This plot shows a single tree per iteration and chain
   treeplot <- reactive({
     
-    # require these for interactive rooting
-    input$reroot
-    input$midpoint
-    input$unroot
-    
     # Make sure trees for plotting are selected
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)

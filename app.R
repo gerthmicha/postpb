@@ -427,9 +427,6 @@ collapse.nodes <- function(con.tree, pp){
   # remove support values for collapsed nodes
   contree$node.label[contree$node.label < pp] <- ""
   
-  # nicer plot if ladderized 
-  contree <- ladderize(contree)
-  
   return(contree)
 }
 
@@ -472,14 +469,21 @@ root.tree <- function(con.tree, og){
     validate(
       need(is.monophyletic(con.tree, og), "The specified outgroup is not monophyletic!")
     )
-    con.tree <- root(con.tree,
-                     outgroup = og,
-                     resolve.root = TRUE
-    )
+    
+    # determine the node number of the outgroup clade
+    root.node <- getMRCA(con.tree, tip = og)
+    
+    # root in the middle of the edge
+    edge.position <- 0.5 * con.tree$edge.length[which(con.tree$edge[, 2] == root.node)]
+    
+    con.tree <- reroot(con.tree, root.node, edge.position)
+    
   }
   
   # remove 'root label'
   con.tree$node.label[con.tree$node.label == "Root"] <- ""
+  
+  con.tree <- ladderize(con.tree)
   
   return(con.tree)
 }
@@ -534,9 +538,6 @@ render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.c
   validate(
     need(length(which.tree) > 1,
          message = "Provide tree files from at least 2 chains to display differences between consensus trees."
-    ),
-    need(!("<Midpoint>" %in% og),
-         message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root."
     )
   )
   
@@ -577,10 +578,14 @@ render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.c
       validate(
         need(is.monophyletic(trees[[tree.generation]], og), "The specified outgroup is not monophyletic!")
       )
-      currtree <- root(trees[[tree.generation]],
-                       outgroup = og,
-                       resolve.root = TRUE
-      )
+      # currtree <- root(trees[[tree.generation]],
+      #                  outgroup = og,
+      #                  resolve.root = TRUE
+      # )
+      
+      root.node <- getMRCA(trees[[tree.generation]], tip = og)
+      edge.position <- 0.5 * trees[[tree.generation]]$edge.length[which(trees[[tree.generation]]$edge[, 2] == root.node)]
+      currtree <- reroot(trees[[tree.generation]], root.node, edge.position)
     }
     
     # Create tip label color vector from highlight picker options (need to do this after rooting, as this impacts tip label order)
@@ -605,6 +610,10 @@ render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.c
 }
 
 render.treediff <- function(thin.trees, all.trees, og, burnin, high.col, tree.cex, tree.font, which.tree){
+  validate(
+    need(!("<Midpoint>" %in% og)),
+    message = "Midpoint rooting not possible for consensus cladograms.\nPlease choose different root!"
+  )
   # loop through all trees and create tree list as well as color list
   contrees <- list()
   colvecs <- list()
