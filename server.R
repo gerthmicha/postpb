@@ -807,11 +807,6 @@ server <- function(input, output, session) {
 
   differenceplot <- reactive({
     
-    # require these for interactive rooting
-    input$reroot
-    input$midpoint
-    input$unroot
-    
     # check if at least 2 tree files are present and if rooting other than midpoint is selected. Throw error if not.
     isolate(outgroup <- og$outgroup)
     render.treediff(thintrees(), alltrees(), outgroup, input$conburnin, highcol$df, input$treecex, treefont(), input$whichtree)
@@ -837,9 +832,44 @@ server <- function(input, output, session) {
     shinycssloaders::withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
   })
 
+  #| # Tab 4 (All topologies) -----
+  # Look at all topologies found in the dataset, and at their frequencies
+  
+  unitops <- reactive({
+    req(contree.p)
+    uniq.trees(treesall())
+  })
+  
+  # extract unique trees from dataset
+  topfreq <- reactive({
+    req(unitops())
+    topology.freqs(treesall(), unitops())
+  }) 
 
-  #| # Tab 4 (Pairwise Robinson-Foulds) -----
-  # Plot 4 shows differences between trees across iterations and between chains
+  # plot frequency bar plot
+  output$topology.freqplot <- renderPlot({
+    req(topfreq())
+    plot.topo.freq(topfreq())
+  })
+  
+  output$toposelect <- renderUI({
+    req(topfreq())
+    topochoice <- as.factor(topfreq()$treefreq)
+    names(topochoice) <- paste0("Topology ", topfreq()$order, ": ", topfreq()$Freq, "/", sum(topfreq()$Freq), " trees")
+    selectInput("toposelect",
+                label = ("Select topology to plot"),
+                choices = topochoice
+    )
+  })
+
+  output$uniq.topo.P <- renderPlot({
+    tn <- as.numeric(input$toposelect)
+    plot(unitops()[tn])
+    title(main = paste0("Topology ", topfreq()$order[tn], ": ", topfreq()$Freq[tn], "/", sum(topfreq()$Freq), " trees"))
+  })
+  
+  #| # Tab 5 (Pairwise Robinson-Foulds) -----
+  # Plot 5 shows differences between trees across iterations and between chains
 
   # Calculate RF distances in parallel if multiple cores are available
 
@@ -872,9 +902,9 @@ server <- function(input, output, session) {
   )
 
 
-  #| # Tab 5 (Bipartition support) -----
+  #| # Tab 6 (Bipartition support) -----
 
-  # Tab 5 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group.
+  # Tab 6 counts the number of trees in which a particular group was monophyletic. It also prints a simplified tree of this group.
 
   # Picker input to chose which taxa to check (similar to highlight color choser)
   output$bpselect <- renderUI({
@@ -961,7 +991,7 @@ server <- function(input, output, session) {
   })
 
 
-  #| # Tab 6 (RWTY) -----
+  #| # Tab 7 (RWTY) -----
   # Some useful plots from the RWTY package (https://cran.r-project.org/package=rwty)
 
   # convert tree files to rwty format

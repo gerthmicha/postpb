@@ -278,7 +278,7 @@ ui <- fluidPage(
                             min = 0.5,
                             max = 1,
                             value = 0.5,
-                            step = 0.05,
+                            step = 0.01,
                             ticks = FALSE
                 ),
                 downloadButton("consensusPDF", "Download tree as pdf",
@@ -313,6 +313,22 @@ ui <- fluidPage(
               br(),
               helpText(HTML("Conflicting nodes between consensus trees will be highlighted in <font color=\"#FF1493\"><b>pink</b></font>."))
             ),
+            tabPanel(
+              "Topologies",
+              br(),
+              fluidRow(
+                column(4, uiOutput("toposelect"), 
+                       conditionalPanel(condition = "output.toposelect",
+                                        fluidRow(column(4, downloadButton("downloadfreq", "Dowload topology frequency plot as pdf", 
+                                                       style = "padding:5px 10px; font-size:90%; background-color:white; color:black"))),
+                                        br(),
+                                        fluidRow(column(4, downloadButton("downloadtop", "Dowload selected tree topology as pdf", 
+                                                       style = "padding:5px 10px; font-size:90%; background-color:white; color:black"))))
+                       ),
+                column(6, plotOutput("topology.freqplot", height = "200px"))),
+              hr(),
+              plotOutput("uniq.topo.P")
+              ),
             tabPanel(
               "Pairwise Robinson-Foulds",
               br(),
