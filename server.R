@@ -26,7 +26,7 @@ server <- function(input, output, session) {
   observeEvent(input$tracefile, {
     tracefile$datapath <- input$tracefile$datapath
     tracefile$name <- input$tracefile$name
-  }) 
+  })
 
   # if 'example 1' button is pressed, load example 1 from example folder
   observeEvent(input$exampletrace1, {
@@ -202,10 +202,12 @@ server <- function(input, output, session) {
   })
   output$tracePlot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput("tracePlot",
-                                            height = input$height,
-                                            width = input$width),
-                                 color = "#2C4152", size = 0.5)
-    })
+      height = input$height,
+      width = input$width
+    ),
+    color = "#2C4152", size = 0.5
+    )
+  })
 
   #| # Tab 2 (Violin) -----
   vP <- reactive({
@@ -216,9 +218,11 @@ server <- function(input, output, session) {
   })
   output$violinPlot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput("violinPlot",
-                                            height = input$height,
-                                            width = input$width),
-                                 color = "#2C4152", size = 0.5)
+      height = input$height,
+      width = input$width
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
 
   #| # Tab 3 (Density) -----
@@ -231,9 +235,11 @@ server <- function(input, output, session) {
   })
   output$densePlot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput("densePlot",
-                                            height = input$height,
-                                            width = input$width),
-                                 color = "#2C4152", size = 0.5)
+      height = input$height,
+      width = input$width
+    ),
+    color = "#2C4152", size = 0.5
+    )
   })
 
   # Create pdf download handle for plots
@@ -555,11 +561,11 @@ server <- function(input, output, session) {
 
   #| Interactive features -----
   # Enable interactive selection of taxon selection for rooting
-  
+
   # create a dataframe of tip labels
   tipDF <- reactive({
     req(input$plot_brush)
-    get.tip.df(roottree()) 
+    get.tip.df(roottree())
   })
 
   # get the names of selected tips from the interactive 'brush' click+drag
@@ -648,8 +654,8 @@ server <- function(input, output, session) {
     highcol$df <- highcol$df %>%
       mutate(V2 = ifelse(V1 %in% input$highlight, input$high1, V2))
   })
-  
-  
+
+
   #| # Tab 1 (Consensus) -----
   # Plot 1 is a consensus plot
 
@@ -661,12 +667,12 @@ server <- function(input, output, session) {
     }
     combine.trees(thintrees(), input$conburnin)
   })
-  
+
   # calculate consensus tree
   contree.p <- reactive({
     calc.cons(treesall())
   })
-  
+
   # collapse nodes lower than threshold chosen by user
   contree <- reactive({
     collapse.nodes(contree.p(), input$postprop)
@@ -674,15 +680,15 @@ server <- function(input, output, session) {
 
   # root the tree
   roottree <- reactive({
-    
+
     # require these for interactive rooting
     input$reroot
     input$midpoint
     input$unroot
-    
+
     # only update when button is pressed
     isolate(outgroup <- og$outgroup)
-    
+
     # root the tree
     root.tree(contree(), outgroup)
   })
@@ -697,7 +703,7 @@ server <- function(input, output, session) {
   output$consensusPlot <- renderPlot({
     consensusplot()
   })
-  
+
   # render consensus plot with spinner
   output$consensusPlot.ui <- renderUI({
     withSpinner(plotOutput("consensusPlot",
@@ -739,7 +745,7 @@ server <- function(input, output, session) {
     }
   )
 
-  #| # Tab 2 (Trees) -----
+  #| # Tab 2 (Trees) ----
 
   # Slider that determines the tree generation currently displayed
   output$treegens <- renderUI({
@@ -762,15 +768,20 @@ server <- function(input, output, session) {
 
   # This plot shows a single tree per iteration and chain
   treeplot <- reactive({
-    
+
+    # require these for interactive rooting
+    input$reroot
+    input$midpoint
+    input$unroot
+
     # Make sure trees for plotting are selected
     if (length(completetrees()) > 1) {
       req(length(input$whichtree) > 0)
     }
-    
+
     # get outgroup from ui, but isolate so that rerooting is only done when button is pressed
     isolate(outgroup <- og$outgroup)
-    
+
     # plot tree
     render.singletrees(thintrees(), outgroup, input$generation, highcol$df, input$treecex, treefont(), treeopts(), input$whichtree)
     recordPlot()
@@ -790,14 +801,14 @@ server <- function(input, output, session) {
     size = 0.5
     )
   })
-  
+
   # PDF download handle for single trees plot
   output$singletreePDF <- downloadHandler(
     filename = "single_tree.pdf",
     contentType = "application/pdf",
     content = function(file2) {
       pdf(file2, height = input$treeheight / 72, width = input$treewidth / 72)
-      replayPlot(treeplot())      
+      replayPlot(treeplot())
       dev.off()
     }
   )
@@ -806,7 +817,12 @@ server <- function(input, output, session) {
   # Plot 3 shows 2 consensus plots with comparison
 
   differenceplot <- reactive({
-    
+
+    # require these for interactive rooting
+    input$reroot
+    input$midpoint
+    input$unroot
+
     # check if at least 2 tree files are present and if rooting other than midpoint is selected. Throw error if not.
     isolate(outgroup <- og$outgroup)
     render.treediff(thintrees(), alltrees(), outgroup, input$conburnin, highcol$df, input$treecex, treefont(), input$whichtree)
@@ -814,19 +830,19 @@ server <- function(input, output, session) {
   })
   output$differencePlot <- renderPlot({
     differenceplot()
-    })
-  
+  })
+
   # PDF download handle for difference plot
   output$differencePDF <- downloadHandler(
     filename = "difference.pdf",
     contentType = "application/pdf",
     content = function(file4) {
       pdf(file4, height = input$treeheight / 72, width = input$treewidth / 72)
-      replayPlot(differenceplot())      
+      replayPlot(differenceplot())
       dev.off()
     }
   )
-  
+
   # finally, render this plot with spinner
   output$differencePlot.ui <- renderUI({
     shinycssloaders::withSpinner(plotOutput("differencePlot", height = treeheight(), width = treewidth()), color = "#2C4152", size = 0.5)
@@ -834,40 +850,101 @@ server <- function(input, output, session) {
 
   #| # Tab 4 (All topologies) -----
   # Look at all topologies found in the dataset, and at their frequencies
-  
+
+  # extract unique trees
   unitops <- reactive({
     req(contree.p)
     uniq.trees(treesall())
   })
-  
-  # extract unique trees from dataset
+
+  # extract determine frequencies of all unique topologies
   topfreq <- reactive({
     req(unitops())
     topology.freqs(treesall(), unitops())
-  }) 
+  })
 
-  # plot frequency bar plot
-  output$topology.freqplot <- renderPlot({
+  # make frequency bar plot
+  tfP <- reactive({
     req(topfreq())
     plot.topo.freq(topfreq())
   })
   
+  output$topology.freqplot <- renderPlot({
+    tfP()
+    })
+  
+  # create download button for plot
+  output$downloadfreq <- downloadHandler(
+    filename = "RFplot.pdf",
+    content = function(file8) {
+      pdf(file8) #, height = input$treeheight / 72, width = input$treewidth / 72)
+      gridExtra::grid.arrange(tfP(), ncol = 1)
+      dev.off()
+    }
+  )
+  
+  
+  
+  # selectinput for which topology to display
   output$toposelect <- renderUI({
     req(topfreq())
     topochoice <- as.factor(topfreq()$treefreq)
     names(topochoice) <- paste0("Topology ", topfreq()$order, ": ", topfreq()$Freq, "/", sum(topfreq()$Freq), " trees")
     selectInput("toposelect",
-                label = ("Select topology to plot"),
-                choices = topochoice
+      label = ("Select topology to plot"),
+      choices = topochoice
     )
   })
 
-  output$uniq.topo.P <- renderPlot({
+  # currently selected topology
+  currtopo <- reactive({
+    req(unitops())
+    req(input$toposelect)
+
+    # require these for interactive rooting
+    input$reroot
+    input$midpoint
+    input$unroot
+
+    isolate(outgroup <- og$outgroup)
     tn <- as.numeric(input$toposelect)
-    plot(unitops()[tn])
-    title(main = paste0("Topology ", topfreq()$order[tn], ": ", topfreq()$Freq[tn], "/", sum(topfreq()$Freq), " trees"))
+    root.tree(unitops()[[tn]], outgroup)
   })
-  
+
+  # Create plot
+  uniq.topoplot <- reactive({
+    req(currtopo())
+    tn <- as.numeric(input$toposelect)
+    render.uniq.topo(currtopo(), topfreq(), tn, highcol$df, input$treecex, treeopts(), treefont())
+    recordPlot()
+  })
+  output$uniq.topo.P <- renderPlot({
+    uniq.topoplot()
+  })
+
+  # PDF download handle for topology plot
+  output$downloadtop <- downloadHandler(
+    filename = function() paste0("unique.topology_", input$toposelect, ".pdf"),
+    contentType = "application/pdf",
+    content = function(file7) {
+      pdf(file7, height = input$treeheight / 72, width = input$treewidth / 72)
+      replayPlot(uniq.topoplot())
+      dev.off()
+    }
+  )
+
+  # render the plot with spinner & using the height and widths from ui
+  output$uniqtopo.ui <- renderUI({
+    withSpinner(plotOutput("uniq.topo.P",
+      height = treeheight(),
+      width = treewidth()
+    ),
+    color = "#2C4152",
+    size = 0.5
+    )
+  })
+
+
   #| # Tab 5 (Pairwise Robinson-Foulds) -----
   # Plot 5 shows differences between trees across iterations and between chains
 
@@ -999,14 +1076,14 @@ server <- function(input, output, session) {
     req(treefile$datapath)
     prepare.rwty.trees(thintrees(), input$treethin)
   })
- 
+
   # generate rwty plots
   rwtyP <- reactive({
     req(treefile$datapath)
     rwty.wrapper(input$ncores, treescalefactor(), rwtytrees())
   })
-  
-  # and plot 
+
+  # and plot
   output$rwtyPlot <- renderPlot({
     rwtyP()
   })

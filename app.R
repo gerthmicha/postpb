@@ -531,15 +531,17 @@ render.contree <- function(root.tree, high.col, thin.trees, tree.cex, tree.opts,
   )
 }
 
+# count unique trees with progress indicator
 uniq.trees <- function(all.trees) {
   progress <- shiny::Progress$new()
   on.exit(progress$close())
   progress$set(message = "Determining unique topologies, please be patient.", value = 0.5)
-  uniqtrees <- unique(all.trees)
+  uniqtrees <- ape::unique.multiPhylo(all.trees)
   progress$set(detail = "DONE!", value = 1)
   return(uniqtrees)
 }
 
+# determine frequencies of unique trees
 topology.freqs <- function(all.trees, uniq.trees) {
   progress <- shiny::Progress$new()
   on.exit(progress$close())
@@ -561,6 +563,7 @@ topology.freqs <- function(all.trees, uniq.trees) {
   return(treefreq)
 }
 
+# plot frequencies as bar plot
 plot.topo.freq <- function(freqdf) {
   ggplot(freqdf, aes(x = order, y = Freq)) +
     geom_bar(stat = "identity") +
@@ -569,6 +572,32 @@ plot.topo.freq <- function(freqdf) {
     xlab("Unique topology #") +
     ylab("Frequency") +
     theme(aspect.ratio = 0.3)
+}
+
+# plot unique topology with informative titles
+render.uniq.topo <- function(currtop, topfreq, tn, high.col, tree.cex, tree.opts, tree.font) {
+
+  # colorvector for tips
+  col.df <- high.col %>%
+    arrange(factor(V1, levels = currtop$tip.label))
+  concolvec <- as.vector(col.df$V2)
+  
+  # Create title
+  treetitle <- paste0("Topology ", topfreq$order[tn], ": ", topfreq$Freq[tn], "/", sum(topfreq$Freq), " trees")
+  
+  # plot
+  plot(currtop,
+       main = treetitle,
+       cex.main = tree.cex * 1.1,
+       cex = tree.cex,
+       align.tip.label = tree.opts[1],
+       use.edge.length = tree.opts[2],
+       edge.width = tree.cex,
+       label.offset = 0.01,
+       font = tree.font,
+       tip.color = concolvec
+  )
+  add.scale.bar(lwd = tree.cex)
 }
 
 render.singletrees <- function(thin.trees, og, tree.generation, high.col, tree.cex, tree.font, tree.opts, which.tree) {

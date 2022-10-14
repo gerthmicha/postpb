@@ -327,7 +327,7 @@ ui <- fluidPage(
                        ),
                 column(6, plotOutput("topology.freqplot", height = "200px"))),
               hr(),
-              plotOutput("uniq.topo.P")
+              uiOutput("uniqtopo.ui")
               ),
             tabPanel(
               "Pairwise Robinson-Foulds",
