@@ -44,7 +44,7 @@ server <- function(input, output, session) {
   observeEvent(input$exampletraceinf, {
     showModal(modalDialog(
       title = "postpb comes with two sets of example data:",
-      includeMarkdown("example/examples.md"),
+      includeMarkdown("modals/examples.md"),
       size = "m"
     ))
   })
@@ -308,7 +308,7 @@ server <- function(input, output, session) {
   observeEvent(input$exampletreeinf, {
     showModal(modalDialog(
       title = "postpb comes with two sets of example data:",
-      includeMarkdown("example/examples.md"),
+      includeMarkdown("modals/examples.md"),
       size = "m"
     ))
   })
@@ -851,16 +851,36 @@ server <- function(input, output, session) {
   #| # Tab 4 (All topologies) -----
   # Look at all topologies found in the dataset, and at their frequencies
 
+  # Info button shows some explanations
+  observeEvent(input$topoinfo, {
+    showModal(modalDialog(
+      title = "Determining unique topologies",
+      includeMarkdown("modals/topologies.md"),
+      size = "m"
+    ))
+  })
+  
+  # subsample trees only if checkbox is activated
+  treessampled <- eventReactive(input$toposamplego, {
+    req(treesall())
+    if(input$toposample == TRUE){
+      sample(treesall(), 100) 
+    }
+    else {
+      treesall()
+    }
+  })
+  
   # extract unique trees
   unitops <- reactive({
     req(contree.p)
-    uniq.trees(treesall())
+    uniq.trees(treessampled())
   })
 
   # extract determine frequencies of all unique topologies
   topfreq <- reactive({
     req(unitops())
-    topology.freqs(treesall(), unitops())
+    topology.freqs(treessampled(), unitops())
   })
 
   # make frequency bar plot
@@ -882,8 +902,6 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
-  
   
   # selectinput for which topology to display
   output$toposelect <- renderUI({

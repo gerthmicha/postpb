@@ -131,7 +131,7 @@ ui <- fluidPage(
                              "Toggle explanations",
                              style = "padding:5px 10px; font-size:90%; background-color:white; color:black"
                 ),
-                hidden(div(id = "stats", includeMarkdown("stats.md")))
+                hidden(div(id = "stats", includeMarkdown("modals/stats.md")))
               )
             ),
           )
@@ -317,7 +317,15 @@ ui <- fluidPage(
               "Topologies",
               br(),
               fluidRow(
-                column(4, uiOutput("toposelect"), 
+                column(2, 
+                       actionButton("toposamplego", "Start analysis", style = "padding:7.5px 15px"),
+                       actionButton("topoinfo", label = icon("info") , style = "padding:7.5px 15px; background-color:white; color:black")),
+                column(4, checkboxInput("toposample", "Subsample to 100 trees (recommended)?", value = TRUE))
+                ),
+              hr(),
+              fluidRow(
+                column(4,
+                       uiOutput("toposelect"), 
                        conditionalPanel(condition = "output.toposelect",
                                         fluidRow(column(4, downloadButton("downloadfreq", "Dowload topology frequency plot as pdf", 
                                                        style = "padding:5px 10px; font-size:90%; background-color:white; color:black"))),
